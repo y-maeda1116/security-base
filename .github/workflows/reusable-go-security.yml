@@ -28,7 +28,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: ${{ inputs.golangci-lint-version }}
           config: ""
