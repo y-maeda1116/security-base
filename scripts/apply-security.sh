@@ -26,7 +26,10 @@ fi
 REPO="$1"
 
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-  echo "Error: GITHUB_TOKEN is not set."
+  GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)"
+fi
+if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+  echo "Error: GITHUB_TOKEN is not set and gh auth token failed."
   usage
 fi
 
@@ -53,14 +56,25 @@ gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   "/repos/${REPO}/branches/main/protection" \
-  -f required_pull_request_reviews='{"dismiss_stale_reviews":true,"require_code_owner_reviews":false,"required_approving_review_count":1}' \
-  -f enforce_admins=true \
-  -f required_status_checks='{"strict":true,"contexts":[]}' \
-  -f allow_force_pushes=false \
-  -f allow_deletions=false \
-  --silent \
+  --input - <<'PAYLOAD' \
   && echo "  Done." \
   || echo "  Failed to configure branch protection."
+{
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 1
+  },
+  "enforce_admins": true,
+  "required_status_checks": {
+    "strict": true,
+    "contexts": []
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+PAYLOAD
 
 # Verify settings
 echo "[3/3] Verifying settings..."
