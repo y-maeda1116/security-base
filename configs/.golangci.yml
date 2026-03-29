@@ -21,10 +21,11 @@ linters:
       check-type-assertions: true
       check-blank: true
 
-formatters:
-  enable:
-    - gofmt
-    - goimports
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
 
 issues:
   max-issues-per-linter: 50
