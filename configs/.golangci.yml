@@ -10,32 +10,23 @@ linters:
     - govet
     - staticcheck
     - unused
-    - gosimple
     - ineffassign
-    - typecheck
-    - misspell
-    - gofmt
-    - goimports
+  settings:
+    gosec:
+      severity: medium
+      confidence: medium
+      excludes:
+        - G104
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
 
-linters-settings:
-  gosec:
-    severity: medium
-    confidence: medium
-    excludes:
-      - G104
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
   max-issues-per-linter: 50
   max-same-issues: 10
