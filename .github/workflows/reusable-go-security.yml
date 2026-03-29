@@ -34,7 +34,8 @@ jobs:
           args: --config=.golangci.yml ./...
 
       - name: Run govulncheck
+        env:
+          CGO_ENABLED: "0"
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          go version -m "$(go env GOPATH)/bin/govulncheck" 2>/dev/null || true
           govulncheck ./...
