@@ -10,10 +10,12 @@ security-base/
 ├── .github/
 │   ├── workflows/              # 再利用可能ワークフロー
 │   │   ├── reusable-go-security.yml
+│   │   ├── reusable-py-security.yml
 │   │   ├── reusable-ts-security.yml
 │   │   └── reusable-secret-scan.yml
 │   └── dependabot.yml          # Dependabot version updates
 ├── configs/                    # 共通Lint設定
+│   ├── .bandit.yml
 │   ├── .golangci.yml
 │   └── .eslintrc.base.json
 ├── scripts/                    # 自動化スクリプト
@@ -26,6 +28,7 @@ security-base/
 | 機能 | 説明 |
 |------|------|
 | Reusable Go Security | golangci-lint (gosec, errcheck等) + govulncheck |
+| Reusable Python Security | pip-audit (依存パッケージ脆弱性) + bandit (コードセキュリティLint) |
 | Reusable TypeScript Security | npm audit + eslint-plugin-security |
 | Reusable Secret Scan | Trivy または Gitleaks によるシークレット検出 |
 | Dependabot | GitHub Actions の週次バージョンアップ自動更新 |
@@ -51,6 +54,23 @@ jobs:
     with:
       go-version: "1.26"
       golangci-lint-version: "v2.11.4"
+```
+
+### Pythonプロジェクトのセキュリティチェック
+
+```yaml
+# .github/workflows/py-security.yml
+name: Python Security
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  py-security:
+    uses: y-maeda1116/security-base/.github/workflows/reusable-py-security.yml@main
+    with:
+      python-version: "3.13"
 ```
 
 ### TypeScriptプロジェクトのセキュリティチェック
@@ -121,6 +141,17 @@ curl -o .golangci.yml https://raw.githubusercontent.com/y-maeda1116/security-bas
 ```
 
 有効な linter: gosec, errcheck, govet, staticcheck, unused, ineffassign
+
+### Python (bandit)
+
+`bandit` をインストールし、設定ファイルをプロジェクトルートに配置してください。
+
+```bash
+pip install bandit
+curl -o .bandit.yml https://raw.githubusercontent.com/y-maeda1116/security-base/main/configs/.bandit.yml
+```
+
+MEDIUM 以上の深刻度を検出します。テスト用の `assert` (B101) はスキップされます。
 
 ### TypeScript (ESLint)
 
