@@ -1,9 +1,0 @@
-# bandit configuration for Python security linting
-# https://bandit.readthedocs.io/
-
-skips:
-  - B101  # assert_used (allow assert in tests)
-
-# Only report MEDIUM and above severity
-severity: MEDIUM
-confidence: MEDIUM

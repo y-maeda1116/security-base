@@ -1,0 +1,76 @@
+[project]
+name = "security-base-python"
+version = "0.1.0"
+description = "Python project template with security-first configuration"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "bandit>=1.18",
+    "pip-audit>=2.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# --- Ruff (Linter + Formatter) ---
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "TCH",  # flake8-type-checking
+    "S",    # flake8-bandit (security)
+]
+ignore = [
+    "S101", # assert (allow in tests)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S106"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# --- mypy (Strict Type Checking) ---
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+# --- bandit (Security Lint) ---
+[tool.bandit]
+skips = ["B101"]
+severity = "MEDIUM"
+confidence = "MEDIUM"
+
+# --- pytest ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --cov=src --cov-report=term-missing --cov-fail-under=80"
