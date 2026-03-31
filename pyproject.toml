@@ -11,7 +11,7 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.9",
     "mypy>=1.14",
-    "bandit>=1.18",
+    "bandit[toml]>=1.9",
     "pip-audit>=2.9",
 ]
 
@@ -38,6 +38,7 @@ select = [
     "C4",   # flake8-comprehensions
     "TCH",  # flake8-type-checking
     "S",    # flake8-bandit (security)
+    "E402", # module level import not at top of file
 ]
 ignore = [
     "S101", # assert (allow in tests)
