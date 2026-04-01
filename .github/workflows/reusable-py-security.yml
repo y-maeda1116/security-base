@@ -31,4 +31,4 @@ jobs:
         run: pip-audit --strict
 
       - name: Run bandit
-        run: bandit -r . -ll -c configs/.bandit.yml
+        run: bandit -r . -ll
