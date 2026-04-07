@@ -4,12 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	stdsync "sync"
 	"time"
-
-	"golang.org/x/sync/errgroup"
 )
 
 // TargetResult holds the result of syncing a single target.
@@ -38,65 +35,89 @@ type GitHubOps interface {
 
 // Syncer orchestrates the sync pipeline for all targets.
 type Syncer struct {
-	git         GitOps
-	github      GitHubOps
-	config      *Config
-	srcCloneDir string
+	git    GitOps
+	github GitHubOps
+	config *Config
+	srcDir string // pre-cloned source directory (empty = clone in SyncAll)
 }
 
 // NewSyncer creates a new Syncer.
 func NewSyncer(git GitOps, gh GitHubOps, cfg *Config, srcDir string) *Syncer {
 	return &Syncer{
-		git:         git,
-		github:      gh,
-		config:      cfg,
-		srcCloneDir: srcDir,
+		git:    git,
+		github: gh,
+		config: cfg,
+		srcDir: srcDir,
 	}
 }
 
 // SyncAll runs the sync pipeline for all targets in parallel.
+// The source repo is cloned once before parallel execution to avoid race conditions.
 func (s *Syncer) SyncAll(ctx context.Context) []TargetResult {
 	results := make([]TargetResult, len(s.config.Targets))
-	g, _ := errgroup.WithContext(ctx)
-	var mu stdsync.Mutex
 
-	for i, target := range s.config.Targets {
-		i, target := i, target
-		g.Go(func() error {
-			result := s.syncTarget(ctx, target)
-			mu.Lock()
-			results[i] = result
-			mu.Unlock()
-			return nil
-		})
-	}
-	g.Wait()
-	return results
-}
-
-func (s *Syncer) syncTarget(ctx context.Context, target Target) TargetResult {
-	result := TargetResult{Target: target}
-
-	// 1. Clone source if needed
-	srcDir := s.srcCloneDir
+	// Clone source repo once, shared across all targets
+	srcDir := s.srcDir
+	cleanup := false
 	if srcDir == "" {
-		srcDir = filepath.Join(os.TempDir(), "sync-src-"+time.Now().Format("20060102-150405"))
+		var err error
+		srcDir, err = os.MkdirTemp("", "sync-src-")
+		if err != nil {
+			for i := range results {
+				results[i] = TargetResult{Error: fmt.Errorf("create temp dir: %w", err)}
+			}
+			return results
+		}
+		cleanup = true
+
 		sourceURL := fmt.Sprintf("https://github.com/%s/%s.git", s.config.Source.Owner, s.config.Source.Repo)
 		if err := s.git.Clone(sourceURL, srcDir); err != nil {
-			result.Error = fmt.Errorf("clone source: %w", err)
-			return result
+			os.RemoveAll(srcDir)
+			for i := range results {
+				results[i] = TargetResult{Error: fmt.Errorf("clone source: %w", err)}
+			}
+			return results
 		}
+	}
+
+	if cleanup {
 		defer os.RemoveAll(srcDir)
 	}
 
-	// 2. Get source SHA
+	var mu stdsync.Mutex
+	var wg stdsync.WaitGroup
+
+	for i, target := range s.config.Targets {
+		i, target := i, target
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result := s.syncTarget(ctx, target, srcDir)
+			mu.Lock()
+			results[i] = result
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return results
+}
+
+func (s *Syncer) syncTarget(ctx context.Context, target Target, srcDir string) TargetResult {
+	result := TargetResult{Target: target}
+
+	// 1. Get source SHA (required for traceability)
 	sourceSHA, err := s.git.GetSHA(srcDir)
 	if err != nil {
-		sourceSHA = "unknown"
+		result.Error = fmt.Errorf("get source SHA: %w", err)
+		return result
 	}
 
-	// 3. Clone target
-	targetDir := filepath.Join(os.TempDir(), "sync-"+target.Repo+"-"+time.Now().Format("20060102-150405"))
+	// 2. Clone target into unique temp dir
+	targetDir, err := os.MkdirTemp("", "sync-"+target.Repo+"-")
+	if err != nil {
+		result.Error = fmt.Errorf("create temp dir for target: %w", err)
+		return result
+	}
 	defer os.RemoveAll(targetDir)
 
 	targetURL := fmt.Sprintf("https://github.com/%s/%s.git", target.Owner, target.Repo)
@@ -105,14 +126,14 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target) TargetResult {
 		return result
 	}
 
-	// 4. Create branch
-	branch := fmt.Sprintf("%s-%d", target.BranchPrefix, time.Now().Unix())
+	// 3. Create branch
+	branch := fmt.Sprintf("%s-%d", target.BranchPrefix, time.Now().UnixNano())
 	if err := s.git.CheckoutBranch(targetDir, branch); err != nil {
 		result.Error = fmt.Errorf("checkout branch: %w", err)
 		return result
 	}
 
-	// 5. Check for existing PR
+	// 4. Check for existing PR
 	head := fmt.Sprintf("%s:%s", target.Owner, branch)
 	hasPR, err := s.github.HasOpenPR(ctx, target.Owner, target.Repo, head)
 	if err != nil {
@@ -124,13 +145,13 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target) TargetResult {
 		return result
 	}
 
-	// 6. Copy files
+	// 5. Copy files
 	if _, err := CopyFiles(srcDir, targetDir, s.config.Files); err != nil {
 		result.Error = fmt.Errorf("copy files: %w", err)
 		return result
 	}
 
-	// 7. Check for changes
+	// 6. Check for changes
 	changed, err := s.git.HasChanges(targetDir)
 	if err != nil {
 		result.Error = fmt.Errorf("check changes: %w", err)
@@ -141,7 +162,7 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target) TargetResult {
 		return result
 	}
 
-	// 8. Commit
+	// 7. Commit
 	shortSHA := sourceSHA
 	if len(shortSHA) > 7 {
 		shortSHA = shortSHA[:7]
@@ -152,18 +173,15 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target) TargetResult {
 		return result
 	}
 
-	// 9. Push
+	// 8. Push
 	if err := s.git.Push(targetDir, "origin", branch); err != nil {
 		result.Error = fmt.Errorf("push: %w", err)
 		return result
 	}
 
-	// 10. Create PR
+	// 9. Create PR
 	title := fmt.Sprintf("%s %s@%s", s.config.PR.TitlePrefix, s.config.Source.Repo, shortSHA)
-	body := fmt.Sprintf("## Security Base Sync\nAutomated sync from %s/%s@%s\n\nFiles changed:\n%s",
-		s.config.Source.Owner, s.config.Source.Repo, sourceSHA,
-		formatFileList(s.config.Files),
-	)
+	body := s.buildPRBody(sourceSHA)
 
 	prURL, err := s.github.CreatePullRequest(ctx, target.Owner, target.Repo, title, head, "main", body)
 	if err != nil {
@@ -173,6 +191,20 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target) TargetResult {
 	result.PRURL = prURL
 
 	return result
+}
+
+func (s *Syncer) buildPRBody(sourceSHA string) string {
+	if s.config.PR.BodyTemplate != "" {
+		return strings.NewReplacer(
+			"{source_repo}", fmt.Sprintf("%s/%s", s.config.Source.Owner, s.config.Source.Repo),
+			"{source_sha}", sourceSHA,
+			"{changed_files}", formatFileList(s.config.Files),
+		).Replace(s.config.PR.BodyTemplate)
+	}
+	return fmt.Sprintf("## Security Base Sync\nAutomated sync from %s/%s@%s\n\nFiles changed:\n%s",
+		s.config.Source.Owner, s.config.Source.Repo, sourceSHA,
+		formatFileList(s.config.Files),
+	)
 }
 
 func formatFileList(files []FileMapping) string {

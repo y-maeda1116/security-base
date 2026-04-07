@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -45,20 +46,33 @@ func (g *GitClient) CheckoutBranch(dir, branch string) error {
 	return err
 }
 
-// HasChanges returns true if there are unstaged changes.
+// HasChanges returns true if there are changes (new, modified, or deleted files)
+// compared to HEAD. Uses git add -A followed by git diff --cached --quiet HEAD
+// to detect both tracked and untracked file changes.
 func (g *GitClient) HasChanges(dir string) (bool, error) {
-	out, err := g.runner.Run("git", "-C", dir, "diff", "--quiet")
-	if err != nil {
-		return false, nil // diff --quiet exits 1 when there are changes
+	// Stage all changes so untracked files are included
+	if _, err := g.runner.Run("git", "-C", dir, "add", "-A"); err != nil {
+		return false, fmt.Errorf("stage changes: %w", err)
 	}
-	return strings.TrimSpace(out) != "", nil
+
+	// diff --cached --quiet HEAD exits 1 when there are differences
+	_, err := g.runner.Run("git", "-C", dir, "diff", "--cached", "--quiet", "HEAD")
+	if err != nil {
+		// Check if the error is an exit code 1 (changes detected)
+		type exitCoder interface {
+			ExitCode() int
+		}
+		var ec exitCoder
+		if errors.As(err, &ec) && ec.ExitCode() == 1 {
+			return true, nil // changes detected
+		}
+		return false, fmt.Errorf("check changes: %w", err)
+	}
+	return false, nil
 }
 
-// Commit stages all changes and commits with the given message.
+// Commit commits all staged changes with the given message.
 func (g *GitClient) Commit(dir, message string) error {
-	if _, err := g.runner.Run("git", "-C", dir, "add", "-A"); err != nil {
-		return err
-	}
 	_, err := g.runner.Run("git", "-C", dir, "commit", "-m", message)
 	return err
 }
