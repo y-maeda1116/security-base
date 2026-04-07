@@ -21,6 +21,7 @@ type TargetResult struct {
 type GitOps interface {
 	Clone(url, dir string) error
 	CheckoutBranch(dir, branch string) error
+	Checkout(dir, branch string) error
 	HasChanges(dir string) (bool, error)
 	Commit(dir, message string) error
 	Push(dir, remote, branch string) error
@@ -75,6 +76,15 @@ func (s *Syncer) SyncAll(ctx context.Context) []TargetResult {
 			os.RemoveAll(srcDir)
 			for i := range results {
 				results[i] = TargetResult{Error: fmt.Errorf("clone source: %w", err)}
+			}
+			return results
+		}
+
+		// Checkout configured source branch
+		if err := s.git.Checkout(srcDir, s.config.Source.Branch); err != nil {
+			os.RemoveAll(srcDir)
+			for i := range results {
+				results[i] = TargetResult{Error: fmt.Errorf("checkout source branch %s: %w", s.config.Source.Branch, err)}
 			}
 			return results
 		}

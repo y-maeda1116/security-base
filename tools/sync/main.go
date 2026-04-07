@@ -22,17 +22,20 @@ func main() {
 		log.Fatalf("get token: %v", err)
 	}
 
+	ctx := context.Background()
 	gitClient := NewGitClient()
-	ghService := NewGitHubService(token)
+	ghService := NewGitHubService(ctx, token)
 
 	syncer := NewSyncer(gitClient, ghService, cfg, "")
 
-	results := syncer.SyncAll(context.Background())
+	results := syncer.SyncAll(ctx)
 
 	fmt.Println("\n=== Sync Results ===")
+	hasError := false
 	for _, r := range results {
 		if r.Error != nil {
 			fmt.Printf("[ERROR] %s/%s: %v\n", r.Target.Owner, r.Target.Repo, r.Error)
+			hasError = true
 		} else if r.Skipped {
 			fmt.Printf("[SKIP]  %s/%s: no changes or PR already exists\n", r.Target.Owner, r.Target.Repo)
 		} else {
@@ -40,10 +43,7 @@ func main() {
 		}
 	}
 
-	// Exit 1 if any target failed
-	for _, r := range results {
-		if r.Error != nil {
-			os.Exit(1)
-		}
+	if hasError {
+		os.Exit(1)
 	}
 }

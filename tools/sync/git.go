@@ -46,6 +46,12 @@ func (g *GitClient) CheckoutBranch(dir, branch string) error {
 	return err
 }
 
+// Checkout checks out an existing branch.
+func (g *GitClient) Checkout(dir, branch string) error {
+	_, err := g.runner.Run("git", "-C", dir, "checkout", branch)
+	return err
+}
+
 // HasChanges returns true if there are changes (new, modified, or deleted files)
 // compared to HEAD. Uses git add -A followed by git diff --cached --quiet HEAD
 // to detect both tracked and untracked file changes.

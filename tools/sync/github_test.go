@@ -32,9 +32,26 @@ func (m *mockGitHubClient) CreatePR(ctx context.Context, owner, repo, title, hea
 	return m.pr, nil
 }
 
-func TestGetToken(t *testing.T) {
-	// This tests the token resolution logic conceptually.
-	// In real usage, GITHUB_TOKEN env or `gh auth token` is used.
+func TestGetToken_EnvVar(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "test-token-123")
+	token, err := GetToken()
+	if err != nil {
+		t.Fatalf("GetToken() error = %v", err)
+	}
+	if token != "test-token-123" {
+		t.Errorf("GetToken() = %q, want %q", token, "test-token-123")
+	}
+}
+
+func TestGetToken_FallbackToGh(t *testing.T) {
+	// When GITHUB_TOKEN is not set, it falls back to gh auth token
+	// If gh is available with a valid token, it succeeds
+	// If gh is not available, it fails
+	t.Setenv("GITHUB_TOKEN", "")
+	_, err := GetToken()
+	// Result depends on whether gh CLI is configured
+	// Just verify the function doesn't panic
+	_ = err
 }
 
 func TestListOpenPRs(t *testing.T) {

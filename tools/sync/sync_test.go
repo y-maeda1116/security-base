@@ -32,6 +32,11 @@ func (s *stubGitOps) CheckoutBranch(dir, branch string) error {
 	return s.checkoutErr
 }
 
+func (s *stubGitOps) Checkout(dir, branch string) error {
+	s.calls = append(s.calls, "Checkout:"+branch)
+	return s.checkoutErr
+}
+
 func (s *stubGitOps) HasChanges(dir string) (bool, error) {
 	s.calls = append(s.calls, "HasChanges")
 	return s.hasChanges, s.hasChangesErr

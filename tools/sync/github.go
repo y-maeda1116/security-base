@@ -54,9 +54,9 @@ type GitHubService struct {
 }
 
 // NewGitHubService creates a GitHubService with a real GitHub client.
-func NewGitHubService(token string) *GitHubService {
+func NewGitHubService(ctx context.Context, token string) *GitHubService {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	tc := oauth2.NewClient(context.Background(), ts)
+	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 	return &GitHubService{client: &realGitHubClient{client: client}}
 }
@@ -79,7 +79,7 @@ func (s *GitHubService) CreatePullRequest(ctx context.Context, owner, repo, titl
 	if pr.HTMLURL != nil {
 		return *pr.HTMLURL, nil
 	}
-	return "", nil
+	return "", fmt.Errorf("PR created for %s/%s but HTMLURL was nil in response", owner, repo)
 }
 
 // GetToken resolves a GitHub token from environment or gh CLI.
