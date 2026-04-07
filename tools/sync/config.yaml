@@ -1,0 +1,44 @@
+source:
+  owner: y-maeda1116
+  repo: security-base
+  branch: main
+
+files:
+  - src: .github/workflows/reusable-go-security.yml
+    dst: .github/workflows/reusable-go-security.yml
+  - src: .github/workflows/reusable-py-security.yml
+    dst: .github/workflows/reusable-py-security.yml
+  - src: .github/workflows/reusable-ts-security.yml
+    dst: .github/workflows/reusable-ts-security.yml
+  - src: .github/workflows/reusable-secret-scan.yml
+    dst: .github/workflows/reusable-secret-scan.yml
+  - src: .github/workflows/ci.yml
+    dst: .github/workflows/ci.yml
+  - src: .github/dependabot.yml
+    dst: .github/dependabot.yml
+  - src: configs/.golangci.yml
+    dst: configs/.golangci.yml
+  - src: configs/.eslintrc.base.json
+    dst: configs/.eslintrc.base.json
+  - src: scripts/apply-security.sh
+    dst: scripts/apply-security.sh
+
+targets:
+  - owner: y-maeda1116
+    repo: python-template-base
+    branch_prefix: sync/security-base
+  - owner: y-maeda1116
+    repo: ts-template-base
+    branch_prefix: sync/security-base
+  - owner: y-maeda1116
+    repo: template-go-cross
+    branch_prefix: sync/security-base
+
+pr:
+  title_prefix: "chore: sync security-base"
+  body_template: |
+    ## Security Base Sync
+    Automated sync from {source_repo}@{source_sha}
+
+    Files changed:
+    {changed_files}
