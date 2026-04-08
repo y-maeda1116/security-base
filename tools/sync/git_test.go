@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -30,7 +31,7 @@ func (m *mockRunner) Run(name string, args ...string) (string, error) {
 			return resp.output, resp.err
 		}
 	}
-	return "", nil
+	return "", fmt.Errorf("unexpected command: %q", cmd)
 }
 
 func TestGitClient_Clone(t *testing.T) {
@@ -112,24 +113,37 @@ func TestGitClient_HasChanges(t *testing.T) {
 		name       string
 		runner     *mockRunner
 		wantResult bool
+		wantErr    bool
 	}{
 		{
 			name: "no changes",
 			runner: &mockRunner{
 				responses: map[string]mockResponse{
-					"git -C": {output: "", err: nil},
+					"git -C /tmp/dest add":    {output: "", err: nil},
+					"git -C /tmp/dest diff":   {output: "", err: nil},
 				},
 			},
 			wantResult: false,
 		},
 		{
-			name: "has changes",
+			name: "has changes (diff exits 1)",
 			runner: &mockRunner{
 				responses: map[string]mockResponse{
-					"git -C": {output: "some diff", err: nil},
+					"git -C /tmp/dest add":    {output: "", err: nil},
+					"git -C /tmp/dest diff":   {output: "", err: &exitError{code: 1}},
 				},
 			},
 			wantResult: true,
+		},
+		{
+			name: "real error (diff exits 128)",
+			runner: &mockRunner{
+				responses: map[string]mockResponse{
+					"git -C /tmp/dest add":    {output: "", err: nil},
+					"git -C /tmp/dest diff":   {output: "", err: &exitError{code: 128}},
+				},
+			},
+			wantErr: true,
 		},
 	}
 
@@ -137,8 +151,9 @@ func TestGitClient_HasChanges(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &GitClient{runner: tt.runner}
 			result, err := client.HasChanges("/tmp/dest")
-			if err != nil {
-				t.Errorf("HasChanges() error = %v", err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HasChanges() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 			if result != tt.wantResult {
 				t.Errorf("HasChanges() = %v, want %v", result, tt.wantResult)
@@ -160,19 +175,11 @@ func TestGitClient_Commit(t *testing.T) {
 		t.Errorf("Commit() error = %v", err)
 	}
 
-	// Should have add and commit calls
-	hasAdd := false
 	hasCommit := false
 	for _, call := range runner.calls {
-		if strings.Contains(call, "add -A") {
-			hasAdd = true
-		}
 		if strings.Contains(call, "commit -m") {
 			hasCommit = true
 		}
-	}
-	if !hasAdd {
-		t.Error("expected 'git add -A' to be called")
 	}
 	if !hasCommit {
 		t.Error("expected 'git commit -m' to be called")
@@ -231,4 +238,17 @@ func TestGitClient_GetSHA(t *testing.T) {
 	if sha != "abc123def456" {
 		t.Errorf("GetSHA() = %q, want %q", sha, "abc123def456")
 	}
+}
+
+// exitError is a test double for exec.ExitError.
+type exitError struct {
+	code int
+}
+
+func (e *exitError) Error() string {
+	return fmt.Sprintf("exit status %d", e.code)
+}
+
+func (e *exitError) ExitCode() int {
+	return e.code
 }

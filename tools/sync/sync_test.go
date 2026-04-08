@@ -32,6 +32,11 @@ func (s *stubGitOps) CheckoutBranch(dir, branch string) error {
 	return s.checkoutErr
 }
 
+func (s *stubGitOps) Checkout(dir, branch string) error {
+	s.calls = append(s.calls, "Checkout:"+branch)
+	return s.checkoutErr
+}
+
 func (s *stubGitOps) HasChanges(dir string) (bool, error) {
 	s.calls = append(s.calls, "HasChanges")
 	return s.hasChanges, s.hasChangesErr
@@ -81,7 +86,7 @@ func TestSyncTarget_ExistingPR(t *testing.T) {
 		PR:     PRConfig{TitlePrefix: "chore: sync"},
 	}, "")
 
-	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"})
+	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"}, t.TempDir())
 
 	if result.Error != nil {
 		t.Errorf("expected no error for existing PR, got: %v", result.Error)
@@ -101,7 +106,7 @@ func TestSyncTarget_CloneFails(t *testing.T) {
 		PR:     PRConfig{TitlePrefix: "chore: sync"},
 	}, t.TempDir())
 
-	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"})
+	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"}, t.TempDir())
 
 	if result.Error == nil {
 		t.Error("expected error when clone fails")
@@ -121,7 +126,7 @@ func TestSyncTarget_NoChanges(t *testing.T) {
 		PR:     PRConfig{TitlePrefix: "chore: sync"},
 	}, srcDir)
 
-	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"})
+	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"}, srcDir)
 
 	if result.Error != nil {
 		t.Errorf("unexpected error: %v", result.Error)
@@ -144,7 +149,7 @@ func TestSyncTarget_PushFails(t *testing.T) {
 		PR:     PRConfig{TitlePrefix: "chore: sync"},
 	}, srcDir)
 
-	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"})
+	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"}, srcDir)
 
 	if result.Error == nil {
 		t.Error("expected error when push fails")
@@ -164,7 +169,7 @@ func TestSyncTarget_AllStepsSuccess(t *testing.T) {
 		PR:     PRConfig{TitlePrefix: "chore: sync"},
 	}, srcDir)
 
-	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"})
+	result := syncer.syncTarget(context.Background(), Target{Owner: "o", Repo: "tgt", BranchPrefix: "sync/sb"}, srcDir)
 
 	if result.Error != nil {
 		t.Errorf("unexpected error: %v", result.Error)

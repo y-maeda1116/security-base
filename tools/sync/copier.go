@@ -24,10 +24,15 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("open dest: %w", err)
 	}
-	defer dstFile.Close()
 
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("copy data: %w", err)
+	// Copy data and explicitly check close error to detect partial writes
+	_, copyErr := io.Copy(dstFile, srcFile)
+	closeErr := dstFile.Close()
+	if copyErr != nil {
+		return fmt.Errorf("copy data: %w", copyErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close dest file: %w", closeErr)
 	}
 
 	// Preserve source permissions
