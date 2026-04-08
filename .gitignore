@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Go
+tools/sync/sync
