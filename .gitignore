@@ -4,6 +4,16 @@
 .env.local
 .env.*.local
 
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+dist/
+build/
+
+# Ruff
+.ruff_cache/
+
 # Logs
 *.log
 
