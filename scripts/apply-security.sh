@@ -91,12 +91,16 @@ VULN_ENABLED=$(gh api \
   "/repos/${REPO}/vulnerability-alerts" \
   --silent \
   -w "%{http_code}" \
-  2>/dev/null || echo "unknown")
+  2>/dev/null || echo "000")
 
 echo ""
 echo "=== Configuration Summary ==="
 echo "Repository:       ${REPO}"
-echo "Vuln alerts:      enabled"
+if [[ "$VULN_ENABLED" == "204" ]]; then
+  echo "Vuln alerts:      enabled"
+else
+  echo "Vuln alerts:      unknown (HTTP ${VULN_ENABLED})"
+fi
 echo "Branch protection:"
 echo "${PROTECTION}" | jq .
 echo ""

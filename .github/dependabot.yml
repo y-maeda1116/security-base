@@ -7,3 +7,19 @@ updates:
     labels:
       - "dependencies"
       - "automated"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "automated"
+
+  - package-ecosystem: "gomod"
+    directory: "/tools/sync"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "automated"
