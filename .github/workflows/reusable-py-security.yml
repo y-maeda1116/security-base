@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: "3.13"
+      bandit-target:
+        description: "Directory or path for bandit to scan recursively"
+        required: false
+        type: string
+        default: "src"
 
 jobs:
   py-security:
@@ -30,4 +35,6 @@ jobs:
         run: uv run pip-audit
 
       - name: Run bandit
-        run: uv run bandit -r src -ll
+        env:
+          BANDIT_TARGET: ${{ inputs.bandit-target }}
+        run: uv run bandit -r "$BANDIT_TARGET" -ll
