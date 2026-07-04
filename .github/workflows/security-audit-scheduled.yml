@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/reusable-go-security.yml
     with:
       working-directory: tools/sync
-      golangci-config: ${{ github.workspace }}/configs/.golangci.yml
+      golangci-config: configs/.golangci.yml
 
   secret-scan:
     name: Secret Scan (Trivy)
