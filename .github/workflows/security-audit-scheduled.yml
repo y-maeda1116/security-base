@@ -2,7 +2,6 @@ name: Scheduled Security Audit
 
 # 週次で自リポジトリのセキュリティ監査を実行し、main の赤状態がPR発火なしで
 # 放置されるのを防ぐ。失敗時はissueを起票し、次回成功時に自動で閉じる。
-# 注: Go (tools/sync) は reusable-go-security.yml の config パス問題の解決後に追加予定。
 
 on:
   schedule:
@@ -21,13 +20,20 @@ jobs:
     name: Python (pip-audit + bandit)
     uses: ./.github/workflows/reusable-py-security.yml
 
+  go-audit:
+    name: Go (golangci-lint + govulncheck)
+    uses: ./.github/workflows/reusable-go-security.yml
+    with:
+      working-directory: tools/sync
+      golangci-config: ../configs/.golangci.yml
+
   secret-scan:
     name: Secret Scan (Trivy)
     uses: ./.github/workflows/reusable-secret-scan.yml
 
   notify-on-failure:
     name: Open issue on failure
-    needs: [py-audit, secret-scan]
+    needs: [py-audit, go-audit, secret-scan]
     if: ${{ always() && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions:
@@ -37,6 +43,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PY_RESULT: ${{ needs.py-audit.result }}
+          GO_RESULT: ${{ needs.go-audit.result }}
           SECRET_RESULT: ${{ needs.secret-scan.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -48,6 +55,7 @@ jobs:
 
           Results:
           - py-audit:    ${PY_RESULT}
+          - go-audit:    ${GO_RESULT}
           - secret-scan: ${SECRET_RESULT}
 
           Run: ${RUN_URL}
@@ -63,7 +71,7 @@ jobs:
 
   close-on-success:
     name: Close resolved issue on success
-    needs: [py-audit, secret-scan]
+    needs: [py-audit, go-audit, secret-scan]
     if: ${{ always() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions:
