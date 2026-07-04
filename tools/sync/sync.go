@@ -73,7 +73,7 @@ func (s *Syncer) SyncAll(ctx context.Context) []TargetResult {
 
 		sourceURL := fmt.Sprintf("https://github.com/%s/%s.git", s.config.Source.Owner, s.config.Source.Repo)
 		if err := s.git.Clone(sourceURL, srcDir); err != nil {
-			os.RemoveAll(srcDir)
+			_ = os.RemoveAll(srcDir)
 			for i := range results {
 				results[i] = TargetResult{Error: fmt.Errorf("clone source: %w", err)}
 			}
@@ -82,7 +82,7 @@ func (s *Syncer) SyncAll(ctx context.Context) []TargetResult {
 
 		// Checkout configured source branch
 		if err := s.git.Checkout(srcDir, s.config.Source.Branch); err != nil {
-			os.RemoveAll(srcDir)
+			_ = os.RemoveAll(srcDir)
 			for i := range results {
 				results[i] = TargetResult{Error: fmt.Errorf("checkout source branch %s: %w", s.config.Source.Branch, err)}
 			}
@@ -91,7 +91,7 @@ func (s *Syncer) SyncAll(ctx context.Context) []TargetResult {
 	}
 
 	if cleanup {
-		defer os.RemoveAll(srcDir)
+		defer func() { _ = os.RemoveAll(srcDir) }()
 	}
 
 	var mu stdsync.Mutex
@@ -128,7 +128,7 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target, srcDir string) T
 		result.Error = fmt.Errorf("create temp dir for target: %w", err)
 		return result
 	}
-	defer os.RemoveAll(targetDir)
+	defer func() { _ = os.RemoveAll(targetDir) }()
 
 	targetURL := fmt.Sprintf("https://github.com/%s/%s.git", target.Owner, target.Repo)
 	if err := s.git.Clone(targetURL, targetDir); err != nil {
