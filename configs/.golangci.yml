@@ -21,11 +21,8 @@ linters:
       check-type-assertions: true
       check-blank: true
 
-output:
-  formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
+# output: v2 デフォルト (colored-line-number, linter名・行番号表示) を使用。
+# 旧リスト形式の formats は v2.11+ で 'output.formats expected a map' エラーになるため削除。
 
 issues:
   max-issues-per-linter: 50
