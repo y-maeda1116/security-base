@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/reusable-go-security.yml
     with:
       working-directory: tools/sync
-      golangci-config: ../configs/.golangci.yml
+      golangci-config: ${{ github.workspace }}/configs/.golangci.yml
 
   secret-scan:
     name: Secret Scan (Trivy)
@@ -42,6 +42,7 @@ jobs:
       - name: Create or update tracking issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           PY_RESULT: ${{ needs.py-audit.result }}
           GO_RESULT: ${{ needs.go-audit.result }}
           SECRET_RESULT: ${{ needs.secret-scan.result }}
@@ -80,6 +81,7 @@ jobs:
       - name: Close tracking issue if open
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           LABEL="security-audit-failed"
