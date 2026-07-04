@@ -1,0 +1,81 @@
+name: Scheduled Security Audit
+
+# 週次で自リポジトリのセキュリティ監査を実行し、main の赤状態がPR発火なしで
+# 放置されるのを防ぐ。失敗時はissueを起票し、次回成功時に自動で閉じる。
+# 注: Go (tools/sync) は reusable-go-security.yml の config パス問題の解決後に追加予定。
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # 毎週月曜 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-security-audit
+  cancel-in-progress: false
+
+jobs:
+  py-audit:
+    name: Python (pip-audit + bandit)
+    uses: ./.github/workflows/reusable-py-security.yml
+
+  secret-scan:
+    name: Secret Scan (Trivy)
+    uses: ./.github/workflows/reusable-secret-scan.yml
+
+  notify-on-failure:
+    name: Open issue on failure
+    needs: [py-audit, secret-scan]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Create or update tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PY_RESULT: ${{ needs.py-audit.result }}
+          SECRET_RESULT: ${{ needs.secret-scan.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          LABEL="security-audit-failed"
+          gh label create "$LABEL" --description "Scheduled security audit failed" --color D73A4A 2>/dev/null || true
+          EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          BODY="Scheduled security audit failed.
+
+          Results:
+          - py-audit:    ${PY_RESULT}
+          - secret-scan: ${SECRET_RESULT}
+
+          Run: ${RUN_URL}
+
+          Resolve the failed check(s). The next green scheduled run will close this issue."
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "Security audit failed (scheduled)" --label "$LABEL" --body "$BODY"
+          else
+            gh issue comment "$EXISTING" --body "Still failing.
+
+          $BODY"
+          fi
+
+  close-on-success:
+    name: Close resolved issue on success
+    needs: [py-audit, secret-scan]
+    if: ${{ always() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close tracking issue if open
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          LABEL="security-audit-failed"
+          for num in $(gh issue list --label "$LABEL" --state open --json number --jq '.[].number'); do
+            gh issue comment "$num" --body "Security audit is green. Closing."
+            gh issue close "$num"
+          done
