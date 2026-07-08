@@ -16,7 +16,9 @@ type CommandRunner interface {
 type realRunner struct{}
 
 func (r *realRunner) Run(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	// name/args は内部実装から固定の git サブコマンドと運用者管理の設定値
+	// (repo/branch 等) のみ渡され、シェルを経由しないため G204 は対象外。
+	cmd := exec.Command(name, args...) //nolint:gosec
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return string(out), fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)

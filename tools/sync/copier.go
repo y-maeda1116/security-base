@@ -10,17 +10,19 @@ import (
 // CopyFile copies a single file from src to dst, preserving permissions.
 // It creates destination directories as needed.
 func CopyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
+	// src は同期マッピングで指定された信頼された読み込み元のためG304は対象外。
+	srcFile, err := os.Open(src) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("open source: %w", err)
 	}
 	defer func() { _ = srcFile.Close() }()
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 		return fmt.Errorf("create dst dir: %w", err)
 	}
 
-	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	// dst は同期マッピングで指定された信頼された書き込み先のためG304は対象外。
+	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("open dest: %w", err)
 	}
