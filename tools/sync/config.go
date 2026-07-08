@@ -37,7 +37,9 @@ type Config struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	// path は運用者が指定する信頼された設定ファイルパス(本ツールの本来用途)のため、
+	// 変数からの読み込み (G304) は安全。
+	data, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
