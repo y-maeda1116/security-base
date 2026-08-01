@@ -14,7 +14,7 @@ on:
         description: "golangci-lint version"
         required: false
         type: string
-        default: "v2.11.4"
+        default: "v2.12.2"
       govulncheck-version:
         description: "govulncheck version"
         required: false
