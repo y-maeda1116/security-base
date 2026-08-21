@@ -7,9 +7,10 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        # 1.26.5 で crypto/tls の GO-2026-5856 (ECH プライバシーリーク) が修正。
-        # 1.26.4 では govulncheck が本コードへの影響を検出し exit 3 で監査失敗する。
-        default: "1.26.5"
+        # 1.26.x = マイナーを固定しパッチに自動追従。正確なパッチピンだと stdlib の
+        # セキュリティ修正 (GO-2026-6218/6090/5972/5026 等) のたびに手動バンプが必要で
+        # 定期監査が失敗し続ける (Issue #60)。マイナー (1.27) は手動更新のまま。
+        default: "1.26.x"
       golangci-lint-version:
         description: "golangci-lint version"
         required: false
@@ -45,6 +46,9 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version: ${{ inputs.go-version }}
+          # go-version が 1.26.x のようなパッチ範囲のとき、ランナーのツールキャッシュに
+          # 古いパッチがあればそれを優先してしまうため、最新パッチの解決を強制する。
+          check-latest: true
 
       # golangci-lint v2 fails on relative ../ config paths under --path-mode=abs,
       # so resolve the config against the workspace root here (github.workspace is
