@@ -15,14 +15,14 @@ on:
         description: "golangci-lint version"
         required: false
         type: string
-        default: "v2.12.2"
+        default: "v2.13.2"
       govulncheck-version:
         description: "govulncheck version"
         required: false
         type: string
         # v1.1.3 は Go 1.26 でビルド不可 (依存の x/tools@v0.23.0 が
-        # tokeninternal でコンパイルエラー)。v1.6.0 は x/tools@v0.48.0 で正常。
-        default: "v1.6.0"
+        # tokeninternal でコンパイルエラー)。v1.7.0 は Go 1.26 系で稼働確認済み。
+        default: "v1.7.0"
       working-directory:
         description: "Working directory for lint/vulncheck (e.g. a nested Go module)"
         required: false
