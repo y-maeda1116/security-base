@@ -207,6 +207,8 @@ npm install --save-dev eslint eslint-plugin-security
 
 適用される設定:
 - 脆弱性アラート (Dependabot alerts) の有効化
+- プライベート脆弱性報告 (Private Vulnerability Reporting) の有効化
+- シークレットスキャン + プッシュ保護 (public リポは無料 / private は GHAS 必須)
 - `main` ブランチの保護設定:
   - 管理者にもルール適用 (`enforce_admins`)
   - ステータスチェック合格必須
