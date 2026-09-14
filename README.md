@@ -1,5 +1,7 @@
 # security-base
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/y-maeda1116/security-base/badge)](https://securityscorecards.dev/viewer/?uri=github.com/y-maeda1116/security-base)
+
 GitHubリポジトリのセキュリティ設定を共通管理するためのリポジトリです。
 他のGo/TypeScript/Pythonリポジトリから呼び出される「信頼の源泉」として機能します。
 
