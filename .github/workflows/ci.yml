@@ -36,3 +36,24 @@ jobs:
 
       - name: Run pip-audit
         run: uv run pip-audit
+
+  go-test:
+    name: Go Test (tools/sync)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/sync
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: 1.26.x
+          # 1.26.x のようなパッチ範囲指定で、ランナーのツールキャッシュに古い
+          # パッチがあればそれを使ってしまうのを防ぐ (reusable-go-security と同様)。
+          check-latest: true
+
+      - name: Run go test
+        run: go test ./...
