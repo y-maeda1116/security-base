@@ -198,6 +198,19 @@ npm install --save-dev eslint eslint-plugin-security
 
 外部設定ファイルは不要です。`pyproject.toml` の `[tool.bandit]` セクションをコピーして使用してください。
 
+## テンプレートリポジトリへの自動同期
+
+main ブランチにマージされた変更のうち同期対象ファイル
+(reusable workflows / `configs/` / `scripts/` / `SECURITY.md` / `CODEOWNERS` 等) に
+該当するものがある場合、`Sync Templates` ワークフローが自動でテンプレートリポジトリ
+(python-template-base / ts-template-base / template-go-cross) へ同期PRを作成します。
+
+- ツール本体: `tools/sync` (Go)
+- 設定: `tools/sync/config.yaml` (同期対象ファイルと配布先ターゲット)
+- 認証: repository secret `SYNC_TOKEN` — fine-grained PAT
+  (対象3リポのみ、Contents / Pull requests / Workflows の読み書き権限)
+- 差分がない場合、または同名PRが既に開いている場合はスキップ
+
 ## リポジトリ設定の自動適用
 
 ```bash
