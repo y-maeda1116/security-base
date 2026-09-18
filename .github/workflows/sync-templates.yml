@@ -32,6 +32,18 @@ jobs:
     name: Sync to template repositories
     runs-on: ubuntu-latest
     steps:
+      # 未登録なら以降のステップが不透明なエラーで失敗するため、最初に fail-fast。
+      # secret は env 経由で渡し、${{ }} 展開を run: の本文に埋め込まない。
+      - name: Verify SYNC_TOKEN is set
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "Error: SYNC_TOKEN secret is not configured."
+            echo "Set it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
