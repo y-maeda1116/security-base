@@ -22,6 +22,10 @@ files:
     dst: configs/.eslintrc.base.json
   - src: scripts/apply-security.sh
     dst: scripts/apply-security.sh
+  - src: SECURITY.md
+    dst: SECURITY.md
+  - src: .github/CODEOWNERS
+    dst: .github/CODEOWNERS
 
 targets:
   - owner: y-maeda1116

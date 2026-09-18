@@ -1,5 +1,7 @@
 # security-base
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/y-maeda1116/security-base/badge)](https://securityscorecards.dev/viewer/?uri=github.com/y-maeda1116/security-base)
+
 GitHubリポジトリのセキュリティ設定を共通管理するためのリポジトリです。
 他のGo/TypeScript/Pythonリポジトリから呼び出される「信頼の源泉」として機能します。
 
@@ -8,12 +10,16 @@ GitHubリポジトリのセキュリティ設定を共通管理するための�
 ```
 security-base/
 ├── .github/
-│   ├── workflows/              # 再利用可能ワークフロー
-│   │   ├── ci.yml              # Python CI (uv + ruff + mypy + pytest + pip-audit)
+│   ├── workflows/              # GitHub Actions ワークフロー
+│   │   ├── ci.yml                        # Python CI (uv + ruff + mypy + pytest + pip-audit)
 │   │   ├── reusable-go-security.yml
 │   │   ├── reusable-py-security.yml
 │   │   ├── reusable-ts-security.yml
-│   │   └── reusable-secret-scan.yml
+│   │   ├── reusable-secret-scan.yml
+│   │   ├── scorecard.yml                 # OpenSSF Scorecard 週次スコア化
+│   │   ├── security-audit-scheduled.yml  # 週次セルフ監査
+│   │   └── sync-templates.yml            # テンプレートリポジトリへの自動同期PR
+│   ├── CODEOWNERS              # コードオーナー定義
 │   └── dependabot.yml          # Dependabot version updates
 ├── configs/                    # 共通Lint設定
 │   ├── .golangci.yml
@@ -22,7 +28,10 @@ security-base/
 │   └── apply-security.sh
 ├── src/                        # Python package
 ├── tests/                      # Python tests
+├── tools/
+│   └── sync/                   # テンプレート同期ツール (Go)
 ├── pyproject.toml              # Python project configuration
+├── SECURITY.md                 # セキュリティポリシー
 └── README.md
 ```
 
@@ -36,7 +45,9 @@ security-base/
 | Reusable TypeScript Security | TypeScript | npm audit + eslint-plugin-security |
 | Reusable Secret Scan | 共通 | Trivy または Gitleaks によるシークレット検出 |
 | Dependabot | 共通 | GitHub Actions の週次バージョンアップ自動更新 |
-| apply-security.sh | 共通 | 脆弱性アラート・ブランチ保護の一括設定 |
+| OpenSSF Scorecard | 共通 | セキュリティ姿勢を週次でスコア化し、公開API・バッジで確認 |
+| Sync Templates | 共通 | main マージ後にテンプレートリポジトリへ自動同期PR |
+| apply-security.sh | 共通 | 脆弱性アラート・脆弱性報告・シークレットスキャン+プッシュ保護・ブランチ保護の一括設定 |
 
 ## Python プロジェクトテンプレート
 
@@ -196,6 +207,22 @@ npm install --save-dev eslint eslint-plugin-security
 
 外部設定ファイルは不要です。`pyproject.toml` の `[tool.bandit]` セクションをコピーして使用してください。
 
+## テンプレートリポジトリへの自動同期
+
+main ブランチにマージされた変更のうち同期対象ファイル
+(reusable workflows / `configs/` / `scripts/` / `SECURITY.md` / `CODEOWNERS` 等) に
+該当するものがある場合、`Sync Templates` ワークフローが自動でテンプレートリポジトリ
+(python-template-base / ts-template-base / template-go-cross) へ同期PRを作成します。
+
+- ツール本体: `tools/sync` (Go)
+- 設定: `tools/sync/config.yaml` (同期対象ファイルと配布先ターゲット)
+- 認証: repository secret `SYNC_TOKEN` — fine-grained PAT
+  (対象3リポのみ、Contents / Pull requests / Workflows の読み書き権限)
+- 差分がない場合はスキップ (同一内容のPRが既に開いていても、新規ブランチの差分が
+  空にならない限りPRが新規作成される点に注意)
+
+注: `SYNC_TOKEN` を登録するまで、マージ直後の初回実行は失敗します (想定動作)
+
 ## リポジトリ設定の自動適用
 
 ```bash
@@ -205,6 +232,8 @@ npm install --save-dev eslint eslint-plugin-security
 
 適用される設定:
 - 脆弱性アラート (Dependabot alerts) の有効化
+- プライベート脆弱性報告 (Private Vulnerability Reporting) の有効化
+- シークレットスキャン + プッシュ保護 (public リポは無料 / private は GHAS 必須)
 - `main` ブランチの保護設定:
   - 管理者にもルール適用 (`enforce_admins`)
   - ステータスチェック合格必須

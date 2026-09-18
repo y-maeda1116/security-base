@@ -1,0 +1,80 @@
+name: Sync Templates
+
+# main マージ後に同期対象ファイルへ変更があれば、テンプレート3リポへ自動PR。
+# tools/sync 自体の変更時 (config.yaml の同期対象・配布先変更を含む) も発火。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/reusable-go-security.yml'
+      - '.github/workflows/reusable-py-security.yml'
+      - '.github/workflows/reusable-ts-security.yml'
+      - '.github/workflows/reusable-secret-scan.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/dependabot.yml'
+      - 'configs/**'
+      - 'scripts/**'
+      - 'SECURITY.md'
+      - '.github/CODEOWNERS'
+      - 'tools/sync/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-templates
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync to template repositories
+    runs-on: ubuntu-latest
+    steps:
+      # 未登録なら以降のステップが不透明なエラーで失敗するため、最初に fail-fast。
+      # secret は env 経由で渡し、${{ }} 展開を run: の本文に埋め込まない。
+      - name: Verify SYNC_TOKEN is set
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "Error: SYNC_TOKEN secret is not configured."
+            echo "Set it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: 1.26.x
+          # 1.26.x のようなパッチ範囲指定で、ランナーのツールキャッシュに古い
+          # パッチがあればそれを使ってしまうのを防ぐ (reusable-go-security と同様)。
+          check-latest: true
+
+      # CI ランナーには git のコミット設定がなく、tools/sync の git commit が
+      # 失敗するため必須。
+      - name: Configure git identity
+        run: |
+          git config --global user.name "security-base-sync"
+          git config --global user.email "security-base-sync@users.noreply.github.com"
+
+      # gh を git の credential helper にする。clone と push の認証をカバーし、
+      # トークンがリモートURLやログに露出しない。SYNC_TOKEN は fine-grained PAT
+      # (対象3リポのみ、Contents / Pull requests / Workflows の RW 権限)。
+      - name: Set up git credential helper
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: gh auth setup-git
+
+      # GITHUB_TOKEN は既存 GetToken() が参照 (PR 作成用)。
+      # GH_TOKEN は git push 時に credential helper から呼ばれる gh が参照。
+      - name: Run sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        working-directory: tools/sync
+        run: go run . -config config.yaml
