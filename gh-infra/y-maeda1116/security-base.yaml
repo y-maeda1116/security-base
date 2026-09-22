@@ -65,6 +65,11 @@ spec:
       rules:
         non_fast_forward: true
         deletion: true
+        required_status_checks:
+          strict_required_status_checks_policy: true
+          contexts:
+            - context: "Python CI"
+            - context: "Go Test (tools/sync)"
   actions:
     enabled: true
     allowed_actions: all
