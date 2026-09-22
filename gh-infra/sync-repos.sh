@@ -11,8 +11,12 @@ gh_repos=$(gh repo list "$OWNER" --visibility public -L 100 --json name --jq '.[
 echo "=== Parsing ${REPOS_YAML} ==="
 yaml_repos=$(grep -E '^\s+- name:' "$REPOS_YAML" | sed 's/.*name: *//' | sort)
 
+# standalone YAML (security-base.yaml など) で個別管理するリポは
+# RepositorySet (repos.yaml) に追加しない
+STANDALONE_REPOS="security-base"
+
 echo "=== Detecting new repositories ==="
-new_repos=$(comm -23 <(echo "$gh_repos") <(echo "$yaml_repos"))
+new_repos=$(comm -23 <(echo "$gh_repos") <(printf '%s\n%s\n' "$yaml_repos" "$STANDALONE_REPOS" | sort -u))
 
 if [[ -z "$new_repos" ]]; then
   echo "No new repositories found. All up to date."
