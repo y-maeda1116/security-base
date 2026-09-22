@@ -6,7 +6,7 @@ usage() {
 Usage: apply-security.sh <repo>
 
 Apply security settings to a GitHub repository.
-Branch protection is managed by gh-infra rulesets (gh-infra/y-maeda1116/).
+Branch protection is managed by gh-infra rulesets in the infrastructure repository.
 
 Arguments:
   repo    Repository in owner/repo format (e.g. myorg/myproject)

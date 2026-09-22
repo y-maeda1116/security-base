@@ -26,6 +26,9 @@ gh-infra/
 gh extension install babarot/gh-infra --tag v0.13.0
 ```
 
+Dependabot は gh-infra 拡張を監視できないため、更新は plan ジョブのログや
+手動確認で気付く運用 (バージョン固定のため、更新時はこの README とワークフローのタグを更新する)。
+
 ## 運用コマンド (リポジトリルートから)
 
 ```bash
