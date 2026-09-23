@@ -18,9 +18,13 @@ security-base/
 │   │   ├── reusable-secret-scan.yml
 │   │   ├── scorecard.yml                 # OpenSSF Scorecard 週次スコア化
 │   │   ├── security-audit-scheduled.yml  # 週次セルフ監査
+│   │   ├── gh-infra-plan.yml             # 週次ドリフト検出 (gh infra plan --ci)
 │   │   └── sync-templates.yml            # テンプレートリポジトリへの自動同期PR
 │   ├── CODEOWNERS              # コードオーナー定義
 │   └── dependabot.yml          # Dependabot version updates
+├── gh-infra/                   # リポジトリ設定の宣言管理 (gh-infra)
+│   ├── y-maeda1116/            # repos.yaml (共通) / security-base.yaml (個別)
+│   └── targets.txt             # 管理対象リポジトリ一覧
 ├── configs/                    # 共通Lint設定
 │   ├── .golangci.yml
 │   └── .eslintrc.base.json
@@ -47,7 +51,8 @@ security-base/
 | Dependabot | 共通 | GitHub Actions の週次バージョンアップ自動更新 |
 | OpenSSF Scorecard | 共通 | セキュリティ姿勢を週次でスコア化し、公開API・バッジで確認 |
 | Sync Templates | 共通 | main マージ後にテンプレートリポジトリへ自動同期PR |
-| apply-security.sh | 共通 | 脆弱性アラート・脆弱性報告・シークレットスキャン+プッシュ保護・ブランチ保護の一括設定 |
+| apply-security.sh | 共通 | 脆弱性アラート・脆弱性報告・シークレットスキャン+プッシュ保護の設定 |
+| GH Infra | 共通 | リポジトリ設定をYAMLで宣言管理し、週次でドリフト検出 |
 
 ## Python プロジェクトテンプレート
 
@@ -223,6 +228,27 @@ main ブランチにマージされた変更のうち同期対象ファイル
 
 注: `SYNC_TOKEN` を登録するまで、マージ直後の初回実行は失敗します (想定動作)
 
+## リポジトリ設定の宣言管理 (gh-infra)
+
+y-maeda1116 配下のリポジトリ設定 (labels / features / merge strategy / rulesets /
+actions 設定) を `gh-infra/y-maeda1116/` の YAML で宣言的に管理します。
+ブランチ保護は classic branch protection ではなく rulesets で管理します
+(security-base のみ必須CIチェック付き)。
+
+```bash
+# 新規リポジトリを管理対象に追加
+./gh-infra/sync-repos.sh
+gh infra plan gh-infra/y-maeda1116/    # 差分確認
+gh infra apply gh-infra/y-maeda1116/   # 適用 (ローカル実行のみ)
+```
+
+- ドリフト検出: `GH Infra Plan` ワークフローが週次で `gh infra plan --ci` を実行し、
+  差分があれば issue を起票 (解消で自動クローズ)
+- 認証: repository secret `GH_INFRA_TOKEN` — 読み取り専用 fine-grained PAT
+  (Administration: read)
+- 適用 (`gh infra apply`) はローカル実行のみ。CI に書き込み権限のトークンは置かない
+- 詳細: `gh-infra/README.md`
+
 ## リポジトリ設定の自動適用
 
 ```bash
@@ -234,7 +260,3 @@ main ブランチにマージされた変更のうち同期対象ファイル
 - 脆弱性アラート (Dependabot alerts) の有効化
 - プライベート脆弱性報告 (Private Vulnerability Reporting) の有効化
 - シークレットスキャン + プッシュ保護 (public リポは無料 / private は GHAS 必須)
-- `main` ブランチの保護設定:
-  - 管理者にもルール適用 (`enforce_admins`)
-  - ステータスチェック合格必須
-  - フォースpush・ブランチ削除を禁止

@@ -6,6 +6,7 @@ usage() {
 Usage: apply-security.sh <repo>
 
 Apply security settings to a GitHub repository.
+Branch protection is managed by gh-infra rulesets in the infrastructure repository.
 
 Arguments:
   repo    Repository in owner/repo format (e.g. myorg/myproject)
@@ -41,7 +42,7 @@ fi
 echo "=== Applying security settings to ${REPO} ==="
 
 # Enable vulnerability alerts
-echo "[1/5] Enabling vulnerability alerts..."
+echo "[1/4] Enabling vulnerability alerts..."
 gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
@@ -51,7 +52,7 @@ gh api \
   || echo "  Failed to enable vulnerability alerts."
 
 # Enable private vulnerability reporting (SECURITY.md の報告窓口)
-echo "[2/5] Enabling private vulnerability reporting..."
+echo "[2/4] Enabling private vulnerability reporting..."
 gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
@@ -62,7 +63,7 @@ gh api \
 
 # Enable secret scanning and push protection
 # (public リポは無料 / private + GHAS なしの場合は失敗するため警告で続行)
-echo "[3/5] Enabling secret scanning and push protection..."
+echo "[3/4] Enabling secret scanning and push protection..."
 gh api \
   --method PATCH \
   -H "Accept: application/vnd.github+json" \
@@ -82,43 +83,8 @@ gh api \
 }
 PAYLOAD
 
-# Enable branch protection on main
-echo "[4/5] Configuring branch protection on main..."
-gh api \
-  --method PUT \
-  -H "Accept: application/vnd.github+json" \
-  "/repos/${REPO}/branches/main/protection" \
-  --input - <<'PAYLOAD' \
-  && echo "  Done." \
-  || echo "  Failed to configure branch protection."
-{
-  "required_pull_request_reviews": {
-    "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": false,
-    "required_approving_review_count": 0
-  },
-  "enforce_admins": true,
-  "required_status_checks": {
-    "strict": true,
-    "contexts": []
-  },
-  "restrictions": null,
-  "allow_force_pushes": false,
-  "allow_deletions": false
-}
-PAYLOAD
-
 # Verify settings
-echo "[5/5] Verifying settings..."
-PROTECTION=$(gh api \
-  "/repos/${REPO}/branches/main/protection" \
-  --jq '{
-    enforce_admins: .enforce_admins.enabled,
-    required_reviews: .required_pull_request_reviews.required_approving_review_count,
-    allow_force_pushes: .allow_force_pushes.enabled,
-    allow_deletions: .allow_deletions.enabled
-  }')
-
+echo "[4/4] Verifying settings..."
 VULN_ENABLED=$(gh api \
   "/repos/${REPO}/vulnerability-alerts" \
   --silent \
@@ -154,7 +120,5 @@ else
 fi
 echo "Secret scanning:"
 echo "${SECRET_SCANNING}" | jq .
-echo "Branch protection:"
-echo "${PROTECTION}" | jq .
 echo ""
 echo "Done."

@@ -1,0 +1,104 @@
+name: GH Infra Plan
+
+# 週次で gh-infra の宣言状態 (gh-infra/y-maeda1116/) と GitHub 実状態の
+# ドリフトを検出する。失敗時はissueを起票し、次回成功時に自動で閉じる。
+# トークンは読み取り専用 fine-grained PAT (GH_INFRA_TOKEN)。
+
+on:
+  schedule:
+    - cron: '43 6 * * 1' # 毎週月曜 06:43 UTC (scheduled-security-audit と時間をずらす)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gh-infra-plan
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Drift check (gh infra plan --ci)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # 未登録なら以降のステップが不透明なエラーで失敗するため、最初に fail-fast。
+      # secret は env 経由で渡し、${{ }} 展開を run: の本文に埋め込まない。
+      - name: Verify GH_INFRA_TOKEN is set
+        env:
+          GH_INFRA_TOKEN: ${{ secrets.GH_INFRA_TOKEN }}
+        run: |
+          if [ -z "$GH_INFRA_TOKEN" ]; then
+            echo "Error: GH_INFRA_TOKEN secret is not configured."
+            echo "Set it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Install gh-infra extension (pinned)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install babarot/gh-infra --tag v0.13.0
+
+      # 差分があれば exit 1 (--ci)。ドリフトと実行エラー (トークン期限切れ等) は
+      # 区別せず、どちらも「対応が必要」として同じフローで拾う。
+      - name: Run drift check
+        env:
+          GH_TOKEN: ${{ secrets.GH_INFRA_TOKEN }}
+        run: gh infra plan gh-infra/y-maeda1116/ --ci
+
+  notify-on-failure:
+    name: Open issue on failure
+    needs: [plan]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Create or update tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PLAN_RESULT: ${{ needs.plan.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          LABEL="gh-infra-drift"
+          gh label create "$LABEL" --description "gh-infra drift check failed" --color D73A4A 2>/dev/null || true
+          EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          BODY="gh infra plan reported differences (or failed).
+
+          Results:
+          - plan: ${PLAN_RESULT}
+
+          Check the run log for the diff: ${RUN_URL}
+          Either update gh-infra/y-maeda1116/ or import the GitHub-side change.
+          The next green scheduled run will close this issue."
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "Repository settings drift detected (gh-infra)" --label "$LABEL" --body "$BODY"
+          else
+            gh issue comment "$EXISTING" --body "Still failing.
+
+          $BODY"
+          fi
+
+  close-on-success:
+    name: Close resolved issue on success
+    needs: [plan]
+    if: ${{ always() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close tracking issue if open
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          LABEL="gh-infra-drift"
+          for num in $(gh issue list --label "$LABEL" --state open --json number --jq '.[].number'); do
+            gh issue comment "$num" --body "gh infra plan is green. Closing."
+            gh issue close "$num"
+          done
