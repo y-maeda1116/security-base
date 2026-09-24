@@ -23,7 +23,7 @@ gh-infra/
 - gh-infra 拡張 v0.13.0:
 
 ```bash
-gh extension install babarot/gh-infra --tag v0.13.0
+gh extension install babarot/gh-infra --pin v0.13.0
 ```
 
 Dependabot は gh-infra 拡張を監視できないため、更新は plan ジョブのログや

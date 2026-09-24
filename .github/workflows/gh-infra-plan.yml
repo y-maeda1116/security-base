@@ -39,7 +39,7 @@ jobs:
       - name: Install gh-infra extension (pinned)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh extension install babarot/gh-infra --tag v0.13.0
+        run: gh extension install babarot/gh-infra --pin v0.13.0
 
       # 差分があれば exit 1 (--ci)。ドリフトと実行エラー (トークン期限切れ等) は
       # 区別せず、どちらも「対応が必要」として同じフローで拾う。
