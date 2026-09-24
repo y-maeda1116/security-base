@@ -14,6 +14,9 @@ on:
         type: string
         default: "src"
 
+permissions:
+  contents: read
+
 jobs:
   py-security:
     name: Python Security Check
