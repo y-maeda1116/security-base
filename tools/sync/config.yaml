@@ -12,8 +12,8 @@ files:
     dst: .github/workflows/reusable-ts-security.yml
   - src: .github/workflows/reusable-secret-scan.yml
     dst: .github/workflows/reusable-secret-scan.yml
-  - src: .github/workflows/ci.yml
-    dst: .github/workflows/ci.yml
+  # ci.yml は security-base 自身の CI (src/・tests/・tools/sync を前提) のため
+  # 配布対象外。テンプレート側は各リポのワークフローから reusable を呼ぶ。
   - src: .github/dependabot.yml
     dst: .github/dependabot.yml
   - src: configs/.golangci.yml
