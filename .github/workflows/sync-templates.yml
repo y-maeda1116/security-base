@@ -11,7 +11,6 @@ on:
       - '.github/workflows/reusable-py-security.yml'
       - '.github/workflows/reusable-ts-security.yml'
       - '.github/workflows/reusable-secret-scan.yml'
-      - '.github/workflows/ci.yml'
       - '.github/dependabot.yml'
       - 'configs/**'
       - 'scripts/**'
