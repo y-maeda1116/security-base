@@ -13,7 +13,9 @@ main 以外のブランチ・リリースはサポート対象外です。
 脆弱性を発見した場合は、公開の issue ではなく
 **GitHub のプライベート脆弱性報告 (Private Vulnerability Reporting)** を使って報告してください。
 
-1. このリポジトリの **Security** タブを開く
+報告フォーム: https://github.com/y-maeda1116/security-base/security/advisories/new
+
+1. 上のURL (またはこのリポジトリの **Security** タブの **Report a vulnerability**) を開く
 2. **Report a vulnerability** を選択
 3. アドバイザリフォームに詳細 (影響範囲・再現手順・修正案) を記入して送信
 
