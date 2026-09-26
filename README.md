@@ -93,6 +93,11 @@ uv run mypy src
 
 ## 他リポジトリからの呼び出し方 (Reusable Workflows)
 
+reusable workflow は各リポジトリに配布したローカルコピー (`./.github/workflows/reusable-*.yml`) を参照する。
+テンプレートリポジトリ (python-template-base / ts-template-base / template-go-cross) には tools/sync が自動配布する。
+`y-maeda1116/security-base/...@main` のようなブランチ直接参照はピン留めされず、Scorecard の
+Pinned-Dependencies チェックで減点されるため使わない。
+
 ### Goプロジェクトのセキュリティチェック
 
 ```yaml
@@ -105,7 +110,7 @@ on:
 
 jobs:
   go-security:
-    uses: y-maeda1116/security-base/.github/workflows/reusable-go-security.yml@main
+    uses: ./.github/workflows/reusable-go-security.yml
     with:
       go-version: "1.26"
       golangci-lint-version: "v2.11.4"
@@ -123,7 +128,7 @@ on:
 
 jobs:
   py-security:
-    uses: y-maeda1116/security-base/.github/workflows/reusable-py-security.yml@main
+    uses: ./.github/workflows/reusable-py-security.yml
     with:
       python-version: "3.13"
 ```
@@ -140,7 +145,7 @@ on:
 
 jobs:
   ts-security:
-    uses: y-maeda1116/security-base/.github/workflows/reusable-ts-security.yml@main
+    uses: ./.github/workflows/reusable-ts-security.yml
     with:
       node-version: "24"
       package-manager: "npm"
@@ -158,7 +163,7 @@ on:
 
 jobs:
   secret-scan:
-    uses: y-maeda1116/security-base/.github/workflows/reusable-secret-scan.yml@main
+    uses: ./.github/workflows/reusable-secret-scan.yml
     with:
       scan-tool: "trivy"
 ```
@@ -175,12 +180,12 @@ on:
 
 jobs:
   trivy-scan:
-    uses: y-maeda1116/security-base/.github/workflows/reusable-secret-scan.yml@main
+    uses: ./.github/workflows/reusable-secret-scan.yml
     with:
       scan-tool: "trivy"
 
   gitleaks-scan:
-    uses: y-maeda1116/security-base/.github/workflows/reusable-secret-scan.yml@main
+    uses: ./.github/workflows/reusable-secret-scan.yml
     with:
       scan-tool: "gitleaks"
 ```
