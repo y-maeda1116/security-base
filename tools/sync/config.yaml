@@ -22,8 +22,8 @@ files:
     dst: configs/.eslintrc.base.json
   - src: scripts/apply-security.sh
     dst: scripts/apply-security.sh
-  - src: SECURITY.md
-    dst: SECURITY.md
+  # SECURITY.md は報告フォーム URL (security/advisories/new) がリポジトリ固有のため
+  # verbatim 同期せず各リポジトリで個別に管理する
   - src: .github/CODEOWNERS
     dst: .github/CODEOWNERS
 
