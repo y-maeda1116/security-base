@@ -39,6 +39,12 @@ if ! command -v gh &>/dev/null; then
   exit 1
 fi
 
+# 最終サマリーが jq に依存するため、set -e 下で途中失敗しないよう事前に検証。
+if ! command -v jq &>/dev/null; then
+  echo "Error: jq is not installed."
+  exit 1
+fi
+
 echo "=== Applying security settings to ${REPO} ==="
 
 # Enable vulnerability alerts
