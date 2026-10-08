@@ -16,8 +16,8 @@ type mockGitHubClient struct {
 	calls   []string
 }
 
-func (m *mockGitHubClient) ListOpenPRs(ctx context.Context, owner, repo, head string) ([]*github.PullRequest, error) {
-	m.calls = append(m.calls, "ListOpenPRs:"+owner+"/"+repo+":"+head)
+func (m *mockGitHubClient) ListOpenPRs(ctx context.Context, owner, repo string) ([]*github.PullRequest, error) {
+	m.calls = append(m.calls, "ListOpenPRs:"+owner+"/"+repo)
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -56,10 +56,10 @@ func TestGetToken_FallbackToGh(t *testing.T) {
 
 func TestListOpenPRs(t *testing.T) {
 	tests := []struct {
-		name     string
-		client   *mockGitHubClient
-		wantLen  int
-		wantErr  bool
+		name    string
+		client  *mockGitHubClient
+		wantLen int
+		wantErr bool
 	}{
 		{
 			name: "no existing PRs",
@@ -88,7 +88,7 @@ func TestListOpenPRs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prs, err := tt.client.ListOpenPRs(context.Background(), "owner", "repo", "sync/branch")
+			prs, err := tt.client.ListOpenPRs(context.Background(), "owner", "repo")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ListOpenPRs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -102,15 +102,15 @@ func TestListOpenPRs(t *testing.T) {
 
 func TestCreatePR(t *testing.T) {
 	tests := []struct {
-		name   string
-		client *mockGitHubClient
+		name    string
+		client  *mockGitHubClient
 		wantErr bool
 	}{
 		{
 			name: "success",
 			client: &mockGitHubClient{
 				pr: &github.PullRequest{
-					Number: github.Ptr(1),
+					Number:  github.Ptr(1),
 					HTMLURL: github.Ptr("https://github.com/o/r/pull/1"),
 				},
 			},
@@ -144,39 +144,68 @@ func TestCreatePR(t *testing.T) {
 	}
 }
 
-func TestHasOpenPR(t *testing.T) {
+// openPR builds a PR whose head is <headOwner>:<ref>.
+func openPR(headOwner, ref string) *github.PullRequest {
+	return &github.PullRequest{
+		Head: &github.PullRequestBranch{
+			Ref:  github.Ptr(ref),
+			Repo: &github.Repository{Owner: &github.User{Login: github.Ptr(headOwner)}},
+		},
+	}
+}
+
+func TestHasOpenSyncPR(t *testing.T) {
 	tests := []struct {
-		name   string
-		client *mockGitHubClient
-		want   bool
+		name    string
+		client  *mockGitHubClient
+		want    bool
+		wantErr bool
 	}{
 		{
-			name: "no open PRs",
-			client: &mockGitHubClient{
-				openPRs: []*github.PullRequest{},
-			},
+			name:   "no open PRs",
+			client: &mockGitHubClient{openPRs: []*github.PullRequest{}},
+			want:   false,
+		},
+		{
+			name: "sync PR from earlier run is open",
+			client: &mockGitHubClient{openPRs: []*github.PullRequest{
+				openPR("owner", "feature/x"),
+				openPR("owner", "sync/security-base-1700000000000000000"),
+			}},
+			want: true,
+		},
+		{
+			name: "unrelated PRs only",
+			client: &mockGitHubClient{openPRs: []*github.PullRequest{
+				openPR("owner", "feature/x"),
+				openPR("owner", "sync/security-base"),       // no "-" suffix
+				openPR("owner", "sync/security-baseline-1"), // different prefix
+			}},
 			want: false,
 		},
 		{
-			name: "open PR exists",
-			client: &mockGitHubClient{
-				openPRs: []*github.PullRequest{
-					{Number: github.Ptr(1)},
-				},
-			},
-			want: true,
+			name: "matching branch name from a fork is ignored",
+			client: &mockGitHubClient{openPRs: []*github.PullRequest{
+				openPR("someone-else", "sync/security-base-1"),
+			}},
+			want: false,
+		},
+		{
+			name:    "API error",
+			client:  &mockGitHubClient{err: errors.New("rate limit")},
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &GitHubService{client: tt.client}
-			result, err := svc.HasOpenPR(context.Background(), "owner", "repo", "sync/branch")
-			if err != nil {
-				t.Errorf("HasOpenPR() error = %v", err)
+			result, err := svc.HasOpenSyncPR(context.Background(), "owner", "repo", "sync/security-base")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("HasOpenSyncPR() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if result != tt.want {
-				t.Errorf("HasOpenPR() = %v, want %v", result, tt.want)
+				t.Errorf("HasOpenSyncPR() = %v, want %v", result, tt.want)
 			}
 		})
 	}
