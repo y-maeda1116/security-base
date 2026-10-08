@@ -50,7 +50,7 @@ security-base/
 | Reusable Python Security | Python | pip-audit + bandit (外部ファイル不要) |
 | Reusable TypeScript Security | TypeScript | npm audit + eslint-plugin-security |
 | Reusable Secret Scan | 共通 | Trivy または Gitleaks によるシークレット検出 |
-| Dependabot | 共通 | GitHub Actions の週次バージョンアップ自動更新 |
+| Dependabot | 共通 | GitHub Actions / pip / gomod の日次バージョンアップ自動更新 |
 | OpenSSF Scorecard | 共通 | セキュリティ姿勢を週次でスコア化し、公開API・バッジで確認 |
 | Sync Templates | 共通 | main マージ後にテンプレートリポジトリへ自動同期PR |
 | apply-security.sh | 共通 | 脆弱性アラート・脆弱性報告・シークレットスキャン+プッシュ保護の設定 |
@@ -197,6 +197,9 @@ jobs:
 ```bash
 curl -o .golangci.yml https://raw.githubusercontent.com/y-maeda1116/security-base/main/configs/.golangci.yml
 ```
+
+`reusable-go-security.yml` は既定でリポ直下の `.golangci.yml` を読む。sync で配布される
+`configs/.golangci.yml` をそのまま使う場合は `golangci-config: configs/.golangci.yml` を指定する。
 
 有効な linter: gosec, errcheck, govet, staticcheck, unused, ineffassign
 

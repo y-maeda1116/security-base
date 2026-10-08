@@ -59,15 +59,15 @@ func (s *stubGitOps) GetSHA(dir string) (string, error) {
 
 // stubGitHubOps is a test double for GitHubOps.
 type stubGitHubOps struct {
-	hasOpenPR     bool
-	hasOpenPRErr  error
-	prURL         string
-	createErr     error
-	calls         []string
+	hasOpenPR    bool
+	hasOpenPRErr error
+	prURL        string
+	createErr    error
+	calls        []string
 }
 
-func (s *stubGitHubOps) HasOpenPR(ctx context.Context, owner, repo, head string) (bool, error) {
-	s.calls = append(s.calls, "HasOpenPR:"+owner+"/"+repo)
+func (s *stubGitHubOps) HasOpenSyncPR(ctx context.Context, owner, repo, branchPrefix string) (bool, error) {
+	s.calls = append(s.calls, "HasOpenSyncPR:"+owner+"/"+repo+":"+branchPrefix)
 	return s.hasOpenPR, s.hasOpenPRErr
 }
 
@@ -93,6 +93,15 @@ func TestSyncTarget_ExistingPR(t *testing.T) {
 	}
 	if !result.Skipped {
 		t.Error("expected Skipped=true for existing PR")
+	}
+	if want := "HasOpenSyncPR:o/tgt:sync/sb"; len(ghStub.calls) != 1 || ghStub.calls[0] != want {
+		t.Errorf("github calls = %v, want [%s]", ghStub.calls, want)
+	}
+	// 既存PRがあれば target の clone 以降は行わない
+	for _, c := range gitStub.calls {
+		if strings.HasPrefix(c, "Clone:") || strings.HasPrefix(c, "CheckoutBranch:") {
+			t.Errorf("unexpected git call after existing PR detected: %s", c)
+		}
 	}
 }
 

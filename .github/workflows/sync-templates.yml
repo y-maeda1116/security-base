@@ -11,10 +11,8 @@ on:
       - '.github/workflows/reusable-py-security.yml'
       - '.github/workflows/reusable-ts-security.yml'
       - '.github/workflows/reusable-secret-scan.yml'
-      - '.github/dependabot.yml'
       - 'configs/**'
       - 'scripts/**'
-      - 'SECURITY.md'
       - '.github/CODEOWNERS'
       - 'tools/sync/**'
   workflow_dispatch:

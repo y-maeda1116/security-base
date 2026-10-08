@@ -13,7 +13,7 @@ import (
 
 // GitHubPRClient abstracts GitHub PR operations for testability.
 type GitHubPRClient interface {
-	ListOpenPRs(ctx context.Context, owner, repo, head string) ([]*github.PullRequest, error)
+	ListOpenPRs(ctx context.Context, owner, repo string) ([]*github.PullRequest, error)
 	CreatePR(ctx context.Context, owner, repo, title, head, base, body string) (*github.PullRequest, error)
 }
 
@@ -22,16 +22,23 @@ type realGitHubClient struct {
 	client *github.Client
 }
 
-func (r *realGitHubClient) ListOpenPRs(ctx context.Context, owner, repo, head string) ([]*github.PullRequest, error) {
+func (r *realGitHubClient) ListOpenPRs(ctx context.Context, owner, repo string) ([]*github.PullRequest, error) {
 	opts := &github.PullRequestListOptions{
-		State: "open",
-		Head:  head,
+		State:       "open",
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
-	prs, _, err := r.client.PullRequests.List(ctx, owner, repo, opts)
-	if err != nil {
-		return nil, fmt.Errorf("list PRs: %w", err)
+	var all []*github.PullRequest
+	for {
+		prs, resp, err := r.client.PullRequests.List(ctx, owner, repo, opts)
+		if err != nil {
+			return nil, fmt.Errorf("list PRs: %w", err)
+		}
+		all = append(all, prs...)
+		if resp.NextPage == 0 {
+			return all, nil
+		}
+		opts.Page = resp.NextPage
 	}
-	return prs, nil
 }
 
 func (r *realGitHubClient) CreatePR(ctx context.Context, owner, repo, title, head, base, body string) (*github.PullRequest, error) {
@@ -61,13 +68,24 @@ func NewGitHubService(ctx context.Context, token string) *GitHubService {
 	return &GitHubService{client: &realGitHubClient{client: client}}
 }
 
-// HasOpenPR checks if there's already an open PR from the given head branch.
-func (s *GitHubService) HasOpenPR(ctx context.Context, owner, repo, head string) (bool, error) {
-	prs, err := s.client.ListOpenPRs(ctx, owner, repo, head)
+// HasOpenSyncPR checks if there's already an open PR whose head branch was
+// created by this tool (<branchPrefix>-<suffix>) in the target repository itself.
+// Sync branches carry a unique suffix per run, so an exact head match never hits.
+func (s *GitHubService) HasOpenSyncPR(ctx context.Context, owner, repo, branchPrefix string) (bool, error) {
+	prs, err := s.client.ListOpenPRs(ctx, owner, repo)
 	if err != nil {
 		return false, err
 	}
-	return len(prs) > 0, nil
+	for _, pr := range prs {
+		head := pr.GetHead()
+		if head.GetRepo().GetOwner().GetLogin() != owner {
+			continue // fork からの PR は対象外
+		}
+		if strings.HasPrefix(head.GetRef(), branchPrefix+"-") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // CreatePullRequest creates a new pull request. Returns the PR URL.

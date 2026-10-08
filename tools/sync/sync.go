@@ -30,7 +30,7 @@ type GitOps interface {
 
 // GitHubOps defines the GitHub PR operations needed by the sync pipeline.
 type GitHubOps interface {
-	HasOpenPR(ctx context.Context, owner, repo, head string) (bool, error)
+	HasOpenSyncPR(ctx context.Context, owner, repo, branchPrefix string) (bool, error)
 	CreatePullRequest(ctx context.Context, owner, repo, title, head, base, body string) (string, error)
 }
 
@@ -122,7 +122,18 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target, srcDir string) T
 		return result
 	}
 
-	// 2. Clone target into unique temp dir
+	// 2. Skip if a previous sync PR is still open (avoid piling up PRs)
+	hasPR, err := s.github.HasOpenSyncPR(ctx, target.Owner, target.Repo, target.BranchPrefix)
+	if err != nil {
+		result.Error = fmt.Errorf("check existing PR: %w", err)
+		return result
+	}
+	if hasPR {
+		result.Skipped = true
+		return result
+	}
+
+	// 3. Clone target into unique temp dir
 	targetDir, err := os.MkdirTemp("", "sync-"+target.Repo+"-")
 	if err != nil {
 		result.Error = fmt.Errorf("create temp dir for target: %w", err)
@@ -136,22 +147,10 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target, srcDir string) T
 		return result
 	}
 
-	// 3. Create branch
+	// 4. Create branch
 	branch := fmt.Sprintf("%s-%d", target.BranchPrefix, time.Now().UnixNano())
 	if err := s.git.CheckoutBranch(targetDir, branch); err != nil {
 		result.Error = fmt.Errorf("checkout branch: %w", err)
-		return result
-	}
-
-	// 4. Check for existing PR
-	head := fmt.Sprintf("%s:%s", target.Owner, branch)
-	hasPR, err := s.github.HasOpenPR(ctx, target.Owner, target.Repo, head)
-	if err != nil {
-		result.Error = fmt.Errorf("check existing PR: %w", err)
-		return result
-	}
-	if hasPR {
-		result.Skipped = true
 		return result
 	}
 
@@ -190,6 +189,7 @@ func (s *Syncer) syncTarget(ctx context.Context, target Target, srcDir string) T
 	}
 
 	// 9. Create PR
+	head := fmt.Sprintf("%s:%s", target.Owner, branch)
 	title := fmt.Sprintf("%s %s@%s", s.config.PR.TitlePrefix, s.config.Source.Repo, shortSHA)
 	body := s.buildPRBody(sourceSHA)
 
