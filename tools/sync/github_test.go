@@ -191,6 +191,16 @@ func TestHasOpenSyncPR(t *testing.T) {
 			want: false,
 		},
 		{
+			// 削除済み fork の PR は head.repo が null になる。go-github の Get* は
+			// nil 安全なので panic せず owner 不一致として除外される。
+			name: "PR from deleted fork (nil head repo / nil head)",
+			client: &mockGitHubClient{openPRs: []*github.PullRequest{
+				{Head: &github.PullRequestBranch{Ref: github.Ptr("sync/security-base-1")}},
+				{},
+			}},
+			want: false,
+		},
+		{
 			name:    "API error",
 			client:  &mockGitHubClient{err: errors.New("rate limit")},
 			wantErr: true,
