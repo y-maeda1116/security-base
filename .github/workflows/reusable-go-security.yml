@@ -29,9 +29,11 @@ on:
         type: string
         default: "."
       golangci-config:
-        description: "Path to golangci-lint config, repo-relative (resolved against github.workspace)"
+        description: "Path to golangci-lint config, repo-relative (resolved against github.workspace). Use configs/.golangci.yml for the synced shared config."
         required: false
         type: string
+        # 既定はリポ直下の独自設定。sync で配布される共通設定 (configs/.golangci.yml) を
+        # 使う場合は明示指定する。既定を変えると独自設定を持つ呼び出し側の検査内容が変わる。
         default: ".golangci.yml"
 
 permissions:

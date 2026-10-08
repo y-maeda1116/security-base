@@ -17,7 +17,7 @@ uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 uses: actions/checkout@v4
 ```
 
-Dependabot が週次でSHA付きの更新PRを作成するため、タグ版を使う理由はない。
+Dependabot が日次でSHA付きの更新PRを作成するため、タグ版を使う理由はない。
 
 `go install` 等の `@latest` も再現性を損なうため避け、バージョンを明示的に指定する。
 
