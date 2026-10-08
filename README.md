@@ -29,7 +29,7 @@ security-base/
 │   └── targets.txt             # 管理対象リポジトリ一覧
 ├── configs/                    # 共通Lint設定
 │   ├── .golangci.yml
-│   └── .eslintrc.base.json
+│   └── eslint.config.base.mjs  # ESLint flat config (9+)
 ├── scripts/                    # 自動化スクリプト
 │   └── apply-security.sh
 ├── src/                        # Python package
@@ -149,7 +149,12 @@ jobs:
     with:
       node-version: "24"
       package-manager: "npm"
+      # eslint-config: 省略時はリポの eslint.config.* を自動検出 (推奨)
+      # eslint-target: "src"  # 既定は "."
 ```
+
+ESLint は flat config (ESLint 9+) 前提です。リポの `eslint.config.js` で
+`configs/eslint.config.base.mjs` を読み込んでください (下記「共通設定ファイルの使い方」参照)。
 
 ### シークレットスキャン
 
@@ -205,18 +210,27 @@ curl -o .golangci.yml https://raw.githubusercontent.com/y-maeda1116/security-bas
 
 ### TypeScript (ESLint)
 
+flat config (ESLint 9+)。テンプレートリポには sync で `configs/eslint.config.base.mjs` が配布されます。
+
 ```bash
-npm install --save-dev eslint eslint-plugin-security
+npm install --save-dev eslint @eslint/js eslint-plugin-security globals
+# TypeScript の場合
+npm install --save-dev typescript-eslint
 ```
 
-```jsonc
-// .eslintrc.json
-{
-  "extends": [
-    "./node_modules/y-maeda1116-security-base/configs/.eslintrc.base.json"
-  ]
-}
+```js
+// eslint.config.js
+import securityBase from './configs/eslint.config.base.mjs';
+import tseslint from 'typescript-eslint';
+
+export default [
+  ...securityBase,
+  ...tseslint.configs.recommended,
+];
 ```
+
+旧 `.eslintrc.base.json` は廃止しました (ESLint 9+ では読み込めず、
+eslint-plugin-security に存在しないルール名も含んでいたため)。
 
 ### Python (bandit)
 

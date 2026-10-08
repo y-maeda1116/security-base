@@ -19,8 +19,10 @@ files:
   # 言語エコシステムに合わせて自己管理する。
   - src: configs/.golangci.yml
     dst: configs/.golangci.yml
-  - src: configs/.eslintrc.base.json
-    dst: configs/.eslintrc.base.json
+  # ESLint 9+ の flat config。旧 configs/.eslintrc.base.json は廃止 (同期は削除を
+  # 伝播しないため、配布先に残った旧ファイルは各リポで削除する)
+  - src: configs/eslint.config.base.mjs
+    dst: configs/eslint.config.base.mjs
   - src: scripts/apply-security.sh
     dst: scripts/apply-security.sh
   # SECURITY.md は報告フォーム URL (security/advisories/new) がリポジトリ固有のため
