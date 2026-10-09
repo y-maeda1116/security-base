@@ -38,7 +38,7 @@ Dependabot が日次でSHA付きの更新PRを作成するため、タグ版を�
 ### TypeScript セキュリティ
 
 - 監査: **npm audit --audit-level=high**
-- Lint: **eslint-plugin-security** (設定は `configs/.eslintrc.base.json`)
+- Lint: **eslint-plugin-security** (設定は `configs/eslint.config.base.mjs`、flat config / ESLint 9+)
 
 ## コミット規約
 
