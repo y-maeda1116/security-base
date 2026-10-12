@@ -140,3 +140,9 @@ repositories:
   - name: tokyo-hidden-transfers
 
   - name: y-maeda1116
+
+  - name: ops-ai-agent
+
+  - name: terraform-aws-golden-path
+
+  - name: toil-buster-cli

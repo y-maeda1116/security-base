@@ -17,13 +17,16 @@ y-maeda1116/kaminarimon-lunch-map
 y-maeda1116/kuku19-master
 y-maeda1116/math-training-kids
 y-maeda1116/my-github-config
+y-maeda1116/ops-ai-agent
 y-maeda1116/pack-and-go
 y-maeda1116/python-template-base
 y-maeda1116/security-base
 y-maeda1116/sumida-stream-coffee
 y-maeda1116/template-go-cross
 y-maeda1116/tenki-fuku-bot
+y-maeda1116/terraform-aws-golden-path
 y-maeda1116/til
+y-maeda1116/toil-buster-cli
 y-maeda1116/tokyo-hidden-transfers
 y-maeda1116/ts-template-base
 y-maeda1116/y-maeda1116
