@@ -211,6 +211,8 @@ permissions: {}
 
 jobs:
   automerge:
+    # 人の PR では起動させない
+    if: github.actor == 'dependabot[bot]'
     uses: y-maeda1116/security-base/.github/workflows/reusable-dependabot-automerge.yml@<commit SHA>
     permissions:
       contents: write

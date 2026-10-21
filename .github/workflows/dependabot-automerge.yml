@@ -7,6 +7,8 @@ permissions: {}
 
 jobs:
   automerge:
+    # 人の PR では起動させない
+    if: github.actor == 'dependabot[bot]'
     uses: ./.github/workflows/reusable-dependabot-automerge.yml
     permissions:
       contents: write

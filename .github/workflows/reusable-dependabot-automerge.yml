@@ -94,8 +94,16 @@ jobs:
           stable=0
           prev=""
           while :; do
-            checks=$(gh pr checks "$PR_URL" --json name,bucket,workflow 2>/dev/null || true)
-            [ -n "$checks" ] || checks='[]'
+            if ! checks=$(gh pr checks "$PR_URL" --json name,bucket,workflow 2>"$RUNNER_TEMP/err.txt"); then
+              # 認証・通信エラー等を「チェック無し」と誤認しないよう、期限内は再取得する
+              echo "::warning::gh pr checks failed: $(cat "$RUNNER_TEMP/err.txt")"
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "::error::チェック状態を取得できないままタイムアウトしました"
+                exit 1
+              fi
+              sleep 30
+              continue
+            fi
             others=$(jq --arg self "$SELF_WORKFLOW" '[.[] | select(.workflow != $self)]' <<<"$checks")
             total=$(jq 'length' <<<"$others")
             failed=$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' <<<"$others")
