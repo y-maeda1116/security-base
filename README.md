@@ -51,6 +51,7 @@ security-base/
 | Reusable TypeScript Security | TypeScript | npm audit + eslint-plugin-security |
 | Reusable Secret Scan | 共通 | Trivy または Gitleaks によるシークレット検出 |
 | Dependabot | 共通 | GitHub Actions / pip / gomod の日次バージョンアップ自動更新 |
+| Reusable Dependabot Auto-merge | 共通 | Dependabot の patch / minor 更新PRを他チェック成功後に自動 squash マージ |
 | OpenSSF Scorecard | 共通 | セキュリティ姿勢を週次でスコア化し、公開API・バッジで確認 |
 | Sync Templates | 共通 | main マージ後にテンプレートリポジトリへ自動同期PR |
 | apply-security.sh | 共通 | 脆弱性アラート・脆弱性報告・シークレットスキャン+プッシュ保護の設定 |
@@ -194,6 +195,39 @@ jobs:
     with:
       scan-tool: "gitleaks"
 ```
+
+### Dependabot 自動マージ
+
+Dependabot の patch / minor 更新PRを、そのPRの他のチェックがすべて成功した後に
+squash マージします。major 更新は手動レビュー用に残します。
+
+```yaml
+# .github/workflows/dependabot-automerge.yml
+name: Dependabot Auto-merge
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  automerge:
+    # 人の PR では起動させない
+    if: github.actor == 'dependabot[bot]'
+    uses: y-maeda1116/security-base/.github/workflows/reusable-dependabot-automerge.yml@<commit SHA>
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: read
+```
+
+- main に必須ステータスチェックが無いリポでも動くよう、ネイティブの auto-merge は使わず
+  ジョブ内でチェック完了を待ってからマージする (`allow_auto_merge` の設定は不要)
+- 他のチェックが1件も無い (CI 未設定の) リポではマージせず失敗させる
+- `GITHUB_TOKEN` によるマージのため、push トリガーのデプロイ等は起動しない
+  (次回の手動 push で反映される)
+- 呼び出し先はリモート参照 (SHA ピン留め) で、github-actions エコシステムの
+  Dependabot が SHA を更新する。テンプレート同期の対象には含めない
 
 ## 共通設定ファイルの使い方
 

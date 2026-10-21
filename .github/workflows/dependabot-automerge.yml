@@ -1,0 +1,17 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  automerge:
+    # 人の PR では起動させない
+    if: github.actor == 'dependabot[bot]'
+    uses: ./.github/workflows/reusable-dependabot-automerge.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: read

@@ -1,0 +1,155 @@
+name: Reusable Dependabot Auto-merge
+
+# Dependabot PR のうち patch / minor 更新を、他のチェックがすべて成功した後に
+# squash マージする。major 更新は手動レビューのため対象外。
+#
+# 多くのリポジトリは main に必須ステータスチェックが無く、GitHub ネイティブの
+# auto-merge (gh pr merge --auto) が使えないため、このジョブ内でチェック完了を
+# ポーリングしてから直接マージする。
+#
+# 注意: GITHUB_TOKEN によるマージは push イベントのワークフロー (デプロイ等) を
+# 起動しない。依存更新のみの変更は次回の手動 push で反映される運用とする。
+#
+# 呼び出し側の例:
+#   on: pull_request
+#   permissions: {}
+#   jobs:
+#     automerge:
+#       uses: y-maeda1116/security-base/.github/workflows/reusable-dependabot-automerge.yml@<SHA>
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#         checks: read
+#         statuses: read
+
+on:
+  workflow_call:
+    inputs:
+      max-update-type:
+        description: "自動マージする最大の更新種別 (patch または minor)"
+        required: false
+        type: string
+        default: "minor"
+      merge-method:
+        description: "マージ方法 (squash / merge / rebase)"
+        required: false
+        type: string
+        default: "squash"
+      timeout-minutes:
+        description: "他チェックの完了を待つ最大時間 (分)"
+        required: false
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    name: Dependabot Auto-merge
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: read
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Decide eligibility
+        id: decide
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          MAX_UPDATE_TYPE: ${{ inputs.max-update-type }}
+        run: |
+          case "$MAX_UPDATE_TYPE" in
+            patch) allowed="version-update:semver-patch" ;;
+            minor) allowed="version-update:semver-patch version-update:semver-minor" ;;
+            *) echo "::error::max-update-type は patch または minor を指定してください: $MAX_UPDATE_TYPE"; exit 1 ;;
+          esac
+          eligible=false
+          for t in $allowed; do
+            [ "$UPDATE_TYPE" = "$t" ] && eligible=true
+          done
+          echo "update-type=${UPDATE_TYPE:-unknown} eligible=$eligible"
+          echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for other checks
+        if: steps.decide.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          # 自身 (呼び出し側ワークフロー) のチェックは待機対象から除外する
+          SELF_WORKFLOW: ${{ github.workflow }}
+          TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+        run: |
+          # チェックが登録されるまで少し待つ
+          sleep 30
+          deadline=$(( $(date +%s) + TIMEOUT_MINUTES * 60 ))
+          # 遅れて登録されるチェックを取りこぼさないよう、全完了の状態が
+          # 連続 2 回 (同一のチェック集合) 観測されてからマージする
+          stable=0
+          prev=""
+          while :; do
+            if ! checks=$(gh pr checks "$PR_URL" --json name,bucket,workflow 2>"$RUNNER_TEMP/err.txt"); then
+              # 認証・通信エラー等を「チェック無し」と誤認しないよう、期限内は再取得する
+              echo "::warning::gh pr checks failed: $(cat "$RUNNER_TEMP/err.txt")"
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "::error::チェック状態を取得できないままタイムアウトしました"
+                exit 1
+              fi
+              sleep 30
+              continue
+            fi
+            others=$(jq --arg self "$SELF_WORKFLOW" '[.[] | select(.workflow != $self)]' <<<"$checks")
+            total=$(jq 'length' <<<"$others")
+            failed=$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' <<<"$others")
+            pending=$(jq '[.[] | select(.bucket == "pending")] | length' <<<"$others")
+            passed=$(jq '[.[] | select(.bucket == "pass")] | length' <<<"$others")
+            echo "checks: total=$total passed=$passed failed=$failed pending=$pending"
+            if [ "$failed" -gt 0 ]; then
+              jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | "::error::failed check: \(.name)"' <<<"$others"
+              exit 1
+            fi
+            if [ "$pending" -eq 0 ]; then
+              if [ "$passed" -eq 0 ]; then
+                # CI が無い (成功したチェックが無い) リポジトリでは無検証のマージを避ける
+                echo "::error::成功したチェックがありません。CI 未設定のリポジトリでは自動マージしません。"
+                exit 1
+              fi
+              names=$(jq -c '[.[].name] | sort' <<<"$others")
+              if [ "$names" = "$prev" ]; then
+                stable=$((stable + 1))
+              else
+                stable=1
+                prev="$names"
+              fi
+              [ "$stable" -ge 2 ] && break
+            else
+              stable=0
+              prev=""
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::チェックが ${TIMEOUT_MINUTES} 分以内に完了しませんでした"
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Merge
+        if: steps.decide.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MERGE_METHOD: ${{ inputs.merge-method }}
+        run: |
+          case "$MERGE_METHOD" in
+            squash|merge|rebase) ;;
+            *) echo "::error::merge-method が不正です: $MERGE_METHOD"; exit 1 ;;
+          esac
+          # 待機中に Dependabot がリベースした場合は古いコミットをマージしない
+          gh pr merge "$PR_URL" "--$MERGE_METHOD" --match-head-commit "$HEAD_SHA"
