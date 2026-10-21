@@ -17,6 +17,8 @@ files:
   # dependabot.yml も同様に配布対象外。security-base 自身のものは gomod
   # (/tools/sync) を含み各テンプレートリポでは不正になるため、各リポで
   # 言語エコシステムに合わせて自己管理する。
+  # reusable-dependabot-automerge.yml は各リポからリモート参照 (SHA ピン留め) で
+  # 呼び出すため配布対象外。
   - src: configs/.golangci.yml
     dst: configs/.golangci.yml
   # ESLint 9+ の flat config。旧 configs/.eslintrc.base.json は廃止 (同期は削除を
