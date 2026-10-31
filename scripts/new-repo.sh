@@ -6,6 +6,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SECURITY_BASE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 usage() {
+  show_help
+  exit 1
+}
+
+show_help() {
   cat <<'EOF'
 Usage: new-repo.sh <name> --template <ts|py|go> [options]
 
@@ -28,7 +33,6 @@ Options:
 Example:
   ./scripts/new-repo.sh my-new-project --template ts --description "説明"
 EOF
-  exit 1
 }
 
 die() {
@@ -67,7 +71,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      usage
+      show_help
+      exit 0
       ;;
     -*)
       die "Unknown option: $1 (see --help)"
@@ -99,7 +104,6 @@ FULL_REPO="${OWNER}/${REPO_NAME}"
 # --- Preflight -------------------------------------------------------------
 
 command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed."
-command -v jq >/dev/null 2>&1 || die "jq is not installed."
 gh auth status >/dev/null 2>&1 || die "gh is not authenticated (run 'gh auth login')."
 gh extension list 2>/dev/null | grep -q "babarot/gh-infra" \
   || die "gh-infra extension is not installed (see gh-infra/README.md)."
@@ -126,6 +130,22 @@ run() {
   fi
 }
 
+# リポジトリ作成後に失敗した場合、無防護な状態で残ることを警告する
+REPO_CREATED=false
+warn_partial_failure() {
+  if [[ "$REPO_CREATED" == "true" ]]; then
+    {
+      echo ""
+      echo "WARNING: script failed after creating ${FULL_REPO}."
+      echo "  The repository may be missing security settings (rulesets, Dependabot, secret scanning)."
+      echo "  Apply them manually:"
+      echo "    gh infra apply ${SECURITY_BASE_ROOT}/gh-infra/${OWNER}/ -r ${FULL_REPO} --auto-approve"
+      echo "    ${SCRIPT_DIR}/apply-security.sh ${FULL_REPO}"
+    } >&2
+  fi
+}
+trap warn_partial_failure ERR
+
 echo "=== Creating ${FULL_REPO} from ${TEMPLATE_REPO} (${VISIBILITY}) ==="
 
 # --- 1. Create repository from template ------------------------------------
@@ -134,6 +154,7 @@ info "[1/5] Creating repository from template..."
 create_args=(repo create "$FULL_REPO" --template "${OWNER}/${TEMPLATE_REPO}" --"$VISIBILITY")
 [[ -n "$DESCRIPTION" ]] && create_args+=(--description "$DESCRIPTION")
 run gh "${create_args[@]}"
+$DRY_RUN || REPO_CREATED=true
 
 # --- 2. Register in gh-infra ------------------------------------------------
 
@@ -177,7 +198,8 @@ Created from ${TEMPLATE_REPO} via scripts/new-repo.sh.
 protect-main ruleset / SHA pinning 等の共通設定を適用済み。
 apply-security.sh で脆弱性系設定を有効化済み。"
       git -C "$SECURITY_BASE_ROOT" push -u origin "$branch"
-      gh pr create \
+      # スクリプトは cd しないため、CWD ではなく明示的にリポジトリと head を指定する
+      gh pr create --repo "${OWNER}/security-base" --head "${OWNER}:${branch}" \
         --title "chore: register ${REPO_NAME} in gh-infra management" \
         --body "## 概要
 新規リポジトリ \`${FULL_REPO}\` を gh-infra の宣言管理に登録する。
