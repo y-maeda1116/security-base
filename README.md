@@ -55,6 +55,7 @@ security-base/
 | OpenSSF Scorecard | 共通 | セキュリティ姿勢を週次でスコア化し、公開API・バッジで確認 |
 | Sync Templates | 共通 | main マージ後にテンプレートリポジトリへ自動同期PR |
 | apply-security.sh | 共通 | 脆弱性アラート・脆弱性報告・シークレットスキャン+プッシュ保護の設定 |
+| new-repo.sh | 共通 | テンプレートから新規リポジトリ作成 + gh-infra 登録 + セキュリティ設定を一括適用 |
 | GH Infra | 共通 | リポジトリ設定をYAMLで宣言管理し、週次でドリフト検出 |
 
 ## Python プロジェクトテンプレート
@@ -297,7 +298,10 @@ actions 設定) を `gh-infra/y-maeda1116/` の YAML で宣言的に管理しま
 (security-base のみ必須CIチェック付き)。
 
 ```bash
-# 新規リポジトリを管理対象に追加
+# 新規リポジトリを管理対象に追加 (ワンショット: テンプレートから作成 + 登録 + セキュリティ設定適用)
+./scripts/new-repo.sh my-new-repo --template ts --description "説明"
+
+# 既存リポジトリを管理対象に追加
 ./gh-infra/sync-repos.sh
 gh infra plan gh-infra/y-maeda1116/    # 差分確認
 gh infra apply gh-infra/y-maeda1116/   # 適用 (ローカル実行のみ)

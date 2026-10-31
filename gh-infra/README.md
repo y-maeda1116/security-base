@@ -47,6 +47,14 @@ gh infra plan gh-infra/y-maeda1116/ -r y-maeda1116/til
 
 ## 新規リポジトリ追加
 
+テンプレートから新規作成する場合は `scripts/new-repo.sh` で以下を一括実行できる:
+
+```bash
+./scripts/new-repo.sh <name> --template ts   # 作成 + 登録 + 適用 + 管理PR作成
+```
+
+既存リポジトリを追加する場合 (または手動で行う場合):
+
 ```bash
 ./gh-infra/sync-repos.sh                              # 自動検出して repos.yaml / targets.txt に追加
 gh infra plan gh-infra/y-maeda1116/                   # 差分確認
