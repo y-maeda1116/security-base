@@ -17,6 +17,7 @@ y-maeda1116/kaminarimon-lunch-map
 y-maeda1116/kuku19-master
 y-maeda1116/math-training-kids
 y-maeda1116/my-github-config
+y-maeda1116/nihon-no-shiro
 y-maeda1116/ops-ai-agent
 y-maeda1116/pack-and-go
 y-maeda1116/python-template-base
