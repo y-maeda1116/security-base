@@ -146,3 +146,5 @@ repositories:
   - name: terraform-aws-golden-path
 
   - name: toil-buster-cli
+
+  - name: nihon-no-shiro
