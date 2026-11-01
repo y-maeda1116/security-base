@@ -148,3 +148,5 @@ repositories:
   - name: toil-buster-cli
 
   - name: nihon-no-shiro
+
+  - name: cam-cheat-sheet
