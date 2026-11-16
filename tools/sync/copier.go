@@ -15,7 +15,7 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("open source: %w", err)
 	}
-	defer func() { _ = srcFile.Close() }()
+	defer func() { _ = srcFile.Close() }() //nolint:errcheck // 読み込み専用のため Close 失敗は問題ない
 
 	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 		return fmt.Errorf("create dst dir: %w", err)
